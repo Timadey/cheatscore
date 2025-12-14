@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SD Proctor - Frontend Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 30px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .section h2 {
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #495057;
+            font-weight: 500;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #5568d3;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .video-container {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            margin: 20px 0;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #000;
+        }
+        
+        video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .canvas-container {
+            margin-top: 20px;
+        }
+        
+        canvas {
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            max-width: 100%;
+        }
+        
+        .alerts {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        
+        .alert-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border-left: 4px solid;
+        }
+        
+        .alert-item.high {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+        
+        .alert-item.critical {
+            background: #f8d7da;
+            border-color: #dc3545;
+        }
+        
+        .alert-item .alert-header {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .alert-item .alert-time {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 SD Proctor - Frontend Test</h1>
+        <p class="subtitle">Test face enrollment, verification, and real-time proctoring</p>
+        
+        <!-- Enrollment Section -->
+        <div class="section">
+            <h2>1. Face Enrollment</h2>
+            <div class="form-group">
+                <label>Candidate ID:</label>
+                <input type="text" id="candidateId" placeholder="CAND-001" value="CAND-001">
+            </div>
+            <button onclick="captureAndEnroll()">Capture & Enroll Face</button>
+            <div id="enrollmentStatus"></div>
+        </div>
+        
+        <!-- Session Start Section -->
+        <div class="section">
+            <h2>2. Start Exam Session</h2>
+            <div class="form-group">
+                <label>Exam Session ID:</label>
+                <input type="text" id="sessionId" placeholder="SESS-001" value="SESS-001">
+            </div>
+            <div class="form-group">
+                <label>Candidate ID:</label>
+                <input type="text" id="sessionCandidateId" placeholder="CAND-001" value="CAND-001">
+            </div>
+            <button onclick="startSession()">Start Session</button>
+            <div id="sessionStatus"></div>
+        </div>
+        
+        <!-- Video Capture Section -->
+        <div class="section">
+            <h2>3. Video Stream</h2>
+            <div class="video-container">
+                <video id="video" autoplay playsinline></video>
+            </div>
+            <div class="canvas-container">
+                <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
+            </div>
+            <button id="startStreamBtn" onclick="startVideoStream()">Start Video Stream</button>
+            <button id="stopStreamBtn" onclick="stopVideoStream()" disabled>Stop Stream</button>
+            <div id="streamStatus"></div>
+        </div>
+        
+        <!-- Alerts Section -->
+        <div class="section">
+            <h2>4. Real-Time Alerts</h2>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="frameCount">0</div>
+                    <div class="stat-label">Frames Sent</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="alertCount">0</div>
+                    <div class="stat-label">Alerts Received</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="connectionStatus">Disconnected</div>
+                    <div class="stat-label">WebSocket Status</div>
+                </div>
+            </div>
+            <div class="alerts" id="alertsContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let videoStream = null;
+        let frameWebSocket = null;
+        let alertWebSocket = null;
+        let frameInterval = null;
+        let frameCount = 0;
+        let alertCount = 0;
+        
+        // Initialize video
+        async function initVideo() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480, facingMode: 'user' },
+                    audio: false
+                });
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+                videoStream = stream;
+                return true;
+            } catch (error) {
+                showStatus('streamStatus', 'Error accessing camera: ' + error.message, 'error');
+                return false;
+            }
+        }
+        
+        // Capture frame from video
+        function captureFrame() {
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            return canvas.toDataURL('image/jpeg', 0.8).split(',')[1]; // Get base64 without data URL prefix
+        }
+        
+        // Enroll candidate
+        async function captureAndEnroll() {
+            const candidateId = document.getElementById('candidateId').value;
+            if (!candidateId) {
+                showStatus('enrollmentStatus', 'Please enter candidate ID', 'error');
+                return;
+            }
+            
+            if (!videoStream) {
+                const success = await initVideo();
+                if (!success) return;
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for video to start
+            }
+            
+            showStatus('enrollmentStatus', 'Capturing images...', 'info');
+            
+            // Capture 5 images
+            const images = [];
+            for (let i = 0; i < 5; i++) {
+                const frameData = captureFrame();
+                images.push({
+                    image_base64: frameData,
+                    capture_timestamp: new Date().toISOString()
+                });
+                await new Promise(resolve => setTimeout(resolve, 500)); // Wait between captures
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/enroll`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        candidate_id: candidateId,
+                        images: images
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showStatus('enrollmentStatus', 
+                        `Enrollment successful! Quality: ${data.embeddings[0]?.quality_score?.toFixed(2) || 'N/A'}`, 
+                        'success');
+                } else {
+                    showStatus('enrollmentStatus', `Enrollment failed: ${data.detail}`, 'error');
+                }
+            } catch (error) {
+                showStatus('enrollmentStatus', 'Error: ' + error.message, 'error');
+            }
+        }
+        
+        // Start exam session
+        async function startSession() {
+            const sessionId = document.getElementById('sessionId').value;
+            const candidateId = document.getElementById('sessionCandidateId').value;
+            
+            if (!sessionId || !candidateId) {
+                showStatus('sessionStatus', 'Please enter session ID and candidate ID', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/session/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        exam_session_id: sessionId,
+                        candidate_id: candidateId,
+                        verification_policy: {
+                            face_match_threshold: 0.75,
+                            alert_sensitivity: "high"
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showStatus('sessionStatus', `Session started! WebSocket: ${data.websocket_url}`, 'success');
+                    connectAlertWebSocket(sessionId);
+                } else {
+                    showStatus('sessionStatus', `Failed to start session: ${data.detail}`, 'error');
+                }
+            } catch (error) {
+                showStatus('sessionStatus', 'Error: ' + error.message, 'error');
+            }
+        }
+        
+        // Connect to alert WebSocket
+        function connectAlertWebSocket(sessionId) {
+            const wsUrl = `ws://localhost:8000/api/v1/session/ws/${sessionId}`;
+            alertWebSocket = new WebSocket(wsUrl);
+            
+            alertWebSocket.onopen = () => {
+                document.getElementById('connectionStatus').textContent = 'Connected';
+                showStatus('streamStatus', 'Alert WebSocket connected', 'success');
+            };
+            
+            alertWebSocket.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                
+                if (message.type === 'alert') {
+                    alertCount++;
+                    document.getElementById('alertCount').textContent = alertCount;
+                    addAlert(message);
+                } else if (message.type === 'heartbeat') {
+                    // Update stats if needed
+                }
+            };
+            
+            alertWebSocket.onerror = (error) => {
+                showStatus('streamStatus', 'WebSocket error', 'error');
+            };
+            
+            alertWebSocket.onclose = () => {
+                document.getElementById('connectionStatus').textContent = 'Disconnected';
+            };
+        }
+        
+        // Start video stream
+        async function startVideoStream() {
+            const sessionId = document.getElementById('sessionId').value;
+            const candidateId = document.getElementById('sessionCandidateId').value;
+            
+            if (!sessionId || !candidateId) {
+                showStatus('streamStatus', 'Please start a session first', 'error');
+                return;
+            }
+            
+            if (!videoStream) {
+                const success = await initVideo();
+                if (!success) return;
+            }
+            
+            // Connect to frame WebSocket
+            const wsUrl = `ws://localhost:8000/api/v1/webrtc/frames/${sessionId}`;
+            frameWebSocket = new WebSocket(wsUrl);
+            
+            frameWebSocket.onopen = () => {
+                showStatus('streamStatus', 'Frame stream connected', 'success');
+                document.getElementById('startStreamBtn').disabled = true;
+                document.getElementById('stopStreamBtn').disabled = false;
+                
+                // Start sending frames (30 FPS)
+                frameInterval = setInterval(() => {
+                    if (frameWebSocket.readyState === WebSocket.OPEN) {
+                        const frameData = captureFrame();
+                        frameCount++;
+                        document.getElementById('frameCount').textContent = frameCount;
+                        
+                        frameWebSocket.send(JSON.stringify({
+                            type: 'frame',
+                            candidate_id: candidateId,
+                            frame_data: frameData,
+                            timestamp: new Date().toISOString()
+                        }));
+                    }
+                }, 1000 / 30); // 30 FPS
+            };
+            
+            frameWebSocket.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                
+                if (message.type === 'alert') {
+                    alertCount++;
+                    document.getElementById('alertCount').textContent = alertCount;
+                    addAlert(message);
+                } else if (message.type === 'error') {
+                    showStatus('streamStatus', 'Error: ' + message.message, 'error');
+                }
+            };
+            
+            frameWebSocket.onerror = (error) => {
+                showStatus('streamStatus', 'Frame WebSocket error', 'error');
+            };
+            
+            frameWebSocket.onclose = () => {
+                showStatus('streamStatus', 'Frame stream disconnected', 'info');
+                document.getElementById('startStreamBtn').disabled = false;
+                document.getElementById('stopStreamBtn').disabled = true;
+            };
+        }
+        
+        // Stop video stream
+        function stopVideoStream() {
+            if (frameInterval) {
+                clearInterval(frameInterval);
+                frameInterval = null;
+            }
+            
+            if (frameWebSocket) {
+                frameWebSocket.close();
+                frameWebSocket = null;
+            }
+            
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                videoStream = null;
+            }
+            
+            document.getElementById('startStreamBtn').disabled = false;
+            document.getElementById('stopStreamBtn').disabled = true;
+            showStatus('streamStatus', 'Stream stopped', 'info');
+        }
+        
+        // Add alert to UI
+        function addAlert(alert) {
+            const container = document.getElementById('alertsContainer');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert-item ${alert.severity_score > 0.8 ? 'critical' : 'high'}`;
+            
+            alertDiv.innerHTML = `
+                <div class="alert-header">${alert.event_type}</div>
+                <div>Severity: ${(alert.severity_score * 100).toFixed(0)}%</div>
+                <div class="alert-time">${new Date(alert.timestamp).toLocaleTimeString()}</div>
+            `;
+            
+            container.insertBefore(alertDiv, container.firstChild);
+            
+            // Keep only last 10 alerts
+            while (container.children.length > 10) {
+                container.removeChild(container.lastChild);
+            }
+        }
+        
+        // Show status message
+        function showStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+            
+            if (type === 'success' || type === 'error') {
+                setTimeout(() => {
+                    element.textContent = '';
+                    element.className = '';
+                }, 5000);
+            }
+        }
+        
+        // Initialize on load
+        window.addEventListener('load', () => {
+            initVideo();
+        });
+    </script>
+</body>
+</html>
+

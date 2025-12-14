@@ -1,0 +1,367 @@
+Final Master Prompt for AI Agent — Production Proctoring Backend (Complete)
+
+You are an autonomous backend engineer and systems architect. Your goal is to design, specify, and (if requested) produce code to implement a production-ready AI-powered proctoring backend in Python (FastAPI recommended). Do not produce vague ideas — produce explicit designs, API contracts, configs, trade-offs and code skeletons. Every decision must be justified. Assume the service will be integrated into multiple frontends sending live WebRTC audio/video streams and exam metadata.
+
+High-level responsibilities (do these exactly)
+
+Design a FastAPI-based service (or justify a different Python framework) that ingests WebRTC audio/video from multiple frontends and runs real-time cheating detection models (face verification, gaze tracking, motion, audio anomalies, multi-person detection, etc.).
+
+Implement face enrollment & verification APIs and continuous verification during sessions.
+
+Implement a pluggable alert-dispatcher that RELAYS structured alerts to an external backend (for storage and action). The dispatcher must support gRPC streaming (preferred), durable pub/sub (Kafka/NATS/Redis Streams), and webhooks (HTTP POST) as fallback.
+
+Design the system so detection is fully decoupled from storage/action; proctoring service only emits alerts and minimal audit logs.
+
+Provide: complete architecture, module breakdown, concurrency model, WebRTC ingestion design, model integration plan, API contract (routes + JSON schemas), alert schema, retry/dead-letter policies, scaling & deployment plan, security posture, monitoring & observability plan, and concrete code scaffolding for the alert dispatcher (Python).
+
+Assume GPUs available but design to degrade gracefully if no GPU.
+
+Architecture Overview (explicit)
+
+Ingress Layer: Frontend→WebRTC (peer-to-peer or SFU) → TURN/STUN as needed. Use a lightweight WebRTC gateway (e.g., Janus or mediasoup) or direct browser SDP negotiation to a head node that forwards frames to the Python service (via RTP->gRPC or WebSocket for frames).
+
+WebRTC Gateway (recommended): Janus or mediasoup handles NAT, codecs, and efficient media routing. Configure it to forward raw video frames (H264/I420) and audio (Opus) to the proctoring workers via a binary stream (gRPC or WebSocket).
+
+Proctoring Inference Workers: Python processes (FastAPI for control APIs + separate worker processes for inference). Workers receive frames, run models, produce events. Use asyncio + multiprocessing for CPU-bound models or use TorchServe/Triton for GPU-hosted models.
+
+Alert Dispatcher Module: Separate process/service responsible for serializing and dispatching alerts to external backends via gRPC streaming (primary), durable pub/sub (Kafka/NATS) as persistence/backup, and webhooks as fallback.
+
+Audit & Short-term Buffer: Lightweight timeseries DB or Redis for ephemeral audit logs (short retention). Permanent storage of alerts is the responsibility of external backend.
+
+Control Plane: FastAPI routes for enrollment, verification, admin, session management.
+
+Observability: Prometheus metrics, Grafana dashboards, structured logs (JSON) shipped to ELK/ Loki, and distributed tracing (OpenTelemetry).
+
+Deployment: Kubernetes (recommended) with GPU-node pools, HPA, and stateful Kafka/NATS clusters or managed equivalents (Confluent Cloud, AWS MSK, GCP Pub/Sub). Use Helm charts for deployment.
+
+Module Breakdown (explicit)
+
+api_server (FastAPI)
+
+Routes: enroll, verify, get-session, admin, health, metrics.
+
+Responsible for auth, input validation, DB writes for enrollment metadata.
+
+webrtc_gateway_adapter
+
+Connects Janus/mediasoup to inference workers. Converts RTP frames → application frames.
+
+ingest_manager
+
+Maps incoming streams → exam_session_id and candidate_id, maintains session state and buffer windows.
+
+inference_worker
+
+Runs model pipeline: face detection → face embedding → verification → gaze → pose → audio analysis. Emits events to alert dispatcher asynchronously.
+
+alert_dispatcher
+
+Serializes alerts and delivers to external backends (gRPC primary, Kafka/NATS fallback, webhook tertiary). Handles retry, backoff, DLQ.
+
+embeddings_store
+
+Stores face embeddings and minimal metadata (candidate_id, embedding vector, created_at, quality score). Use vector DB (FAISS/Weaviate/Pinecone) for production or Postgres + pgvector for simpler stack.
+
+session_cache
+
+Redis for ephemeral session state, rate-limiting, and short-term frame buffers.
+
+monitoring & logging
+
+Prometheus metrics, OpenTelemetry traces, structured logs.
+
+WebRTC ingestion — concrete flow
+
+Frontend establishes WebRTC to Janus/mediasoup. SDP connects. Frontend includes exam_session_id and candidate_id in signaling messages or datachannel handshake.
+
+Janus plugin forwards decoded frames (or raw RTP) to the ingress endpoint on the proctoring cluster. Choose between:
+
+gRPC binary stream: low-latency, typed frames, good for high-QPS.
+
+WebSocket: simpler, slightly higher overhead.
+
+Ingest manager parses frames, optionally decodes to raw images using ffmpeg if necessary, and enqueues frames to the inference worker pool.
+
+Workers process frames in sliding windows (e.g., 1s / 3s windows) to produce time-bounded events.
+
+Models & Integration Strategy (explicit)
+
+Model serving approach: Use one of:
+
+Triton Inference Server (preferred for GPU-hosted models) — supports batching, concurrent requests, multiple frameworks.
+
+TorchServe or containerized model servers for each model.
+
+Local lightweight models (CPU-friendly) for graceful degradation (face detection, face embedding via MobileFaceNet or FaceNet-lite, audio voice activity detection).
+
+Heavy models on GPU nodes (gaze estimation, ASR for audio transcripts, sophisticated pose detection).
+
+Model outputs: always normalized into a standard JSON inference result (score + metadata) so the alert dispatcher has a consistent schema.
+
+API Contract (routes + JSON schemas)
+1) Enrollment
+
+POST /api/v1/enroll
+Request (multipart/form-data or JSON with base64 image):
+
+{
+  "candidate_id": "string",
+  "exam_id": "string",           // optional
+  "image_base64": "string",
+  "source": "web|mobile|kiosk",
+  "metadata": { "device": "...", "ip": "..." }
+}
+
+
+Response:
+
+{
+  "status": "ok",
+  "candidate_id": "string",
+  "embedding_id": "uuid",
+  "quality_score": 0.0,
+  "timestamp": "ISO8601"
+}
+
+2) Verification (ad-hoc)
+
+POST /api/v1/verify
+Request:
+
+{
+  "candidate_id": "string",
+  "image_base64": "string"  // or frame_id referencing buffer
+}
+
+
+Response:
+
+{
+  "match": true,
+  "similarity_score": 0.87,
+  "threshold_used": 0.75,
+  "embedding_source": "enrollment_uuid",
+  "timestamp": "ISO8601"
+}
+
+3) Session start / heartbeat
+
+POST /api/v1/session/start
+Request:
+
+{
+  "exam_session_id":"string",
+  "candidate_id":"string",
+  "frontend_instance":"string",
+  "metadata":{}
+}
+
+
+Response: 200 OK + session config
+
+4) Health & metrics
+
+GET /.well-known/health and Prometheus /metrics
+
+Alert Event Schema (canonical JSON)
+
+All alerts the proctoring system emits must follow this canonical structure.
+
+{
+  "event_id": "uuid",
+  "exam_session_id": "string",
+  "candidate_id": "string",
+  "timestamp": "ISO8601",
+  "event_type": "FACE_MISMATCH | MULTIPLE_FACES | EYE_OFF_SCREEN | AUDIO_ANOMALY | SUSPICIOUS_MOVEMENT | LEFT_FRAME | PRESENCE_LOSS",
+  "severity_score": 0.0,    // 0.0 - 1.0
+  "ai_model_source": "face_verifier:v1.3",
+  "evidence": {
+    "frame_ids": ["frame-uuid", "..."],      // optional frames or ref to blob storage / s3 path
+    "thumbnail": "base64-or-url",            // optional
+    "audio_snippet_id": "id-or-url",
+    "gaze_vector": [0.1, -0.2],
+    "pose_keypoints": [[x,y,z], ...],
+    "transcript_snippet": "He said ...",
+    "confidence_metrics": { "face_sim": 0.87 }
+  },
+  "metadata": { "node_id": "string", "worker_id":"string" }
+}
+
+Alert Dispatcher Architecture (concrete & actionable)
+
+Design goals: zero blocking on inference loop, at-least-once delivery to external backend, durable backup, low-latency primary channel.
+
+Components
+
+Dispatcher API (local service) — receives event objects from inference workers via IPC (Redis Streams or local gRPC call).
+
+Primary Transport — gRPC streaming
+
+Implement a bidirectional gRPC stream to an external decision service (external backend). Use protobuf for event schema and stream alerts.
+
+gRPC gives low latency and back-pressure support. Use TLS + mTLS for auth.
+
+Durable Backup — Kafka (or NATS/RedisStreams)
+
+Publish every alert to a Kafka topic proctoring.alerts.v1 synchronously (producer acknowledges). Kafka acts as the truth: external backend can consume at its own pace.
+
+Use compacted topic only if dedup needed; otherwise normal retention and consumer groups for scaling.
+
+Fallback — Webhooks
+
+If gRPC is not available and Kafka is unreachable or external system requires HTTP, issue signed webhook POSTs with retries.
+
+Local Persistence & DLQ
+
+Maintain an internal Redis-backed queue for immediate retry and buffering.
+
+Use a Dead-Letter Kafka topic proctoring.alerts.dlq for alerts failing all retries.
+
+Retry & Backoff policy
+
+Immediate local retries: 3 attempts with exponential backoff (100ms, 500ms, 2s).
+
+If gRPC stream is unavailable, fall back to Kafka publish. If Kafka publish fails, write to local persistent queue then attempt webhook. Move to DLQ after N attempts (configurable, default 5).
+
+Idempotency & Dedup
+
+Each alert has event_id (UUID v4 or deterministic key). Consumers must handle duplicates. Use Kafka offsets + event_id for dedupe.
+
+Observability
+
+Metrics: events emitted, success rate per transport, DLQ count, queue depth, avg dispatch latency.
+
+Tracing across inference -> dispatcher -> external backend.
+
+
+
+
+Open source models for face detection and verification
+
+1. MediaPipe Face Mesh
+Purpose:
+•	Face detection
+•	468 facial landmarks
+•	Lip movement tracking
+•	Eye direction
+•	Head pose estimation (using solvePnP on landmarks)
+Why critical:
+It powers:
+- identity monitoring
+- lip-sync vs audio detection
+- gaze tracking
+- suspicious head movement
+Where to Run:
+Client-side (WebAssembly / WebGPU) → free
+Link:
+https://github.com/google/mediapipe
+
+
+2. MediaPipe Iris
+Purpose:
+•	High-precision iris tracking
+•	Pupil center detection
+•	Eye gaze estimation
+Why critical:
+- detects looking away
+- detects reading from side notes
+- detects phone usage on the lap
+Where to Run:
+Client-side
+Link:
+https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker
+
+
+
+3. MediaPipe Pose (Upper Body Only)
+Purpose:
+•	Detect shoulders, arms, body twist
+•	Detect reaching down for phone
+•	Detect turning to talk to someone
+•	Detect someone entering frame
+Why critical:
+- detects second person
+- detects cheating with side help
+- detects reaching for device
+Where to Run:
+Client-side
+Link:
+https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker
+
+
+
+4. YAMNet (Audio Event Detection)
+Purpose:
+•	Detect speech
+•	Detect whispering
+•	Detect multiple speakers
+•	Detect environmental sounds
+•	Voice activity detection (VAD)
+Why critical:
+- detects talking to neighbor
+- detects background conversation
+- detects external help
+Where to Run:
+Client-side (TensorFlow.js or WASM)
+Server-side optional (not recommended)
+Link:
+https://github.com/tensorflow/models/tree/master/research/audioset/yamnet
+
+ 5. Face Recognition – InsightFace / ArcFace
+Purpose:
+•	Identity verification
+•	Match exam taker with registration photo
+•	Spot impersonation
+•	Detect face replacement fraud
+Why critical:
+- prevents someone else taking the exam
+- consistent presence verification
+Where to Run:
+Server-side (Go AI microservice or Python microservice)
+Client-side (optional)
+Link:
+https://github.com/deepinsight/insightface
+
+6. Lightweight Object Detection: YOLOv8-Nano / YOLO-NAS-S
+Purpose:
+•	Detect phones
+•	Detect books
+•	Detect multiple faces
+•	Detect suspicious objects near candidate
+Why critical:
+- phone detection is one of the highest-value signals
+- second-face detection is required for accreditation
+Where to Run:
+Client-side (WebGPU via ONNX Runtime Web)
+OR
+Server-side microservice (GPU needed)
+Link (YOLOv8):
+https://github.com/ultralytics/ultralytics
+Link (YOLO-NAS):
+https://github.com/Deci-AI/super-gradients
+
+7. Voice Consistency Model (Speaker Embeddings)
+(Optional but powerful)
+Purpose:
+•	Ensure same student speaking (if speaking allowed)
+•	Detect external person feeding answers
+Model:
+•	ECAPA-TDNN or x-vectors (speaker embedding models)
+Where to Run:
+Server-side only
+Link:
+https://github.com/speechbrain/speechbrain/tree/develop/recipes/VoxCeleb/SpeakerRec
+
+
+8. Suspicion Score LLM (Optional, for summarizing events)
+Purpose:
+•	Summarize events
+•	Generate human-readable cheat reports
+•	Combine signals into a final judgment
+Model Recommendation:
+•	Llama 3.1 8B (self-hosted)
+•	GPT-3.5-style LLM (cheap API)
+Where to Run:
+Server-side only
+Link (Llama 3):
+https://github.com/meta-llama/llama-models
