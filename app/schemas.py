@@ -62,6 +62,7 @@ class EmbeddingInfo(BaseModel):
     face_bbox: Optional[List[int]] = None
     pose_angles: Optional[Dict[str, float]] = None
     sharpness_score: Optional[float] = None
+    face_image: Optional[str] = None  # Base64 encoded face crop
     selected: bool = False
 
 

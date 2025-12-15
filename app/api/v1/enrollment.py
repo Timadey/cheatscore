@@ -99,6 +99,7 @@ async def get_enrollment(
                     quality_score=enrollment.quality_score,
                     face_bbox=enrollment.face_bbox,
                     sharpness_score=enrollment.sharpness_score,
+                    face_image=enrollment.face_image,
                     selected=True
                 )
             ],

@@ -217,6 +217,64 @@
                 <label>Candidate ID:</label>
                 <input type="text" id="candidateId" placeholder="CAND-001" value="CAND-001">
             </div>
+
+            <!-- Get Enrollment Section -->
+            <div class="section">
+                <h2>1.5 Check Enrollment</h2>
+                <div class="form-group">
+                    <label>Candidate ID:</label>
+                    <input type="text" id="checkCandidateId" placeholder="CAND-001" value="CAND-001">
+                </div>
+                <button onclick="checkEnrollment()">Get Enrollment Details</button>
+                <div id="checkStatus"></div>
+                <div id="enrollmentDetails" style="margin-top: 15px; display: none;">
+                    <h3>Enrollment Data</h3>
+                    <div style="display: flex; gap: 20px; align-items: start; margin-top: 10px;">
+                        <div>
+                            <img id="enrolledFaceImage"
+                                style="max-width: 150px; border-radius: 8px; border: 2px solid #667eea;">
+                            <div style="text-align: center; font-size: 12px; color: #666; margin-top: 5px;">Enrolled
+                                Face</div>
+                        </div>
+                        <div>
+                            <p><strong>Candidate:</strong> <span id="detailCandidateId"></span></p>
+                            <p><strong>Enrollment ID:</strong> <span id="detailEnrollmentId"></span></p>
+                            <p><strong>Quality Score:</strong> <span id="detailQuality"></span></p>
+                            <p><strong>Sharpness:</strong> <span id="detailSharpness"></span></p>
+                            <p><strong>Timestamp:</strong> <span id="detailTimestamp"></span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Get Enrollment Section -->
+            <div class="section">
+                <h2>1.5 Check Enrollment</h2>
+                <div class="form-group">
+                    <label>Candidate ID:</label>
+                    <input type="text" id="checkCandidateId" placeholder="CAND-001" value="CAND-001">
+                </div>
+                <button onclick="checkEnrollment()">Get Enrollment Details</button>
+                <div id="checkStatus"></div>
+                <div id="enrollmentDetails" style="margin-top: 15px; display: none;">
+                    <h3>Enrollment Data</h3>
+                    <div style="display: flex; gap: 20px; align-items: start; margin-top: 10px;">
+                        <div>
+                            <img id="enrolledFaceImage"
+                                style="max-width: 150px; border-radius: 8px; border: 2px solid #667eea;">
+                            <div style="text-align: center; font-size: 12px; color: #666; margin-top: 5px;">Enrolled
+                                Face</div>
+                        </div>
+                        <div>
+                            <p><strong>Candidate:</strong> <span id="detailCandidateId"></span></p>
+                            <p><strong>Enrollment ID:</strong> <span id="detailEnrollmentId"></span></p>
+                            <p><strong>Quality Score:</strong> <span id="detailQuality"></span></p>
+                            <p><strong>Sharpness:</strong> <span id="detailSharpness"></span></p>
+                            <p><strong>Timestamp:</strong> <span id="detailTimestamp"></span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <button onclick="captureAndEnroll()">Capture & Enroll Face</button>
             <div id="enrollmentStatus"></div>
         </div>
@@ -361,6 +419,46 @@
                 }
             } catch (error) {
                 showStatus('enrollmentStatus', 'Error: ' + error.message, 'error');
+            }
+        }
+
+        // Check enrollment
+        async function checkEnrollment() {
+            const candidateId = document.getElementById('checkCandidateId').value;
+            if (!candidateId) {
+                showStatus('checkStatus', 'Please enter candidate ID', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/enroll/${candidateId}`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    showStatus('checkStatus', 'Enrollment found!', 'success');
+
+                    document.getElementById('enrollmentDetails').style.display = 'block';
+                    document.getElementById('detailCandidateId').textContent = data.candidate_id;
+                    document.getElementById('detailEnrollmentId').textContent = data.enrollment_id;
+                    document.getElementById('detailTimestamp').textContent = new Date(data.enrollment_timestamp).toLocaleString();
+
+                    const embedding = data.embeddings[0];
+                    if (embedding) {
+                        document.getElementById('detailQuality').textContent = (embedding.quality_score * 100).toFixed(1) + '%';
+                        document.getElementById('detailSharpness').textContent = (embedding.sharpness_score || 0).toFixed(1);
+
+                        if (embedding.face_image) {
+                            document.getElementById('enrolledFaceImage').src = embedding.face_image;
+                        } else {
+                            document.getElementById('enrolledFaceImage').src = 'https://via.placeholder.com/150?text=No+Image';
+                        }
+                    }
+                } else {
+                    showStatus('checkStatus', `Error: ${data.detail}`, 'error');
+                    document.getElementById('enrollmentDetails').style.display = 'none';
+                }
+            } catch (error) {
+                showStatus('checkStatus', 'Error: ' + error.message, 'error');
             }
         }
 

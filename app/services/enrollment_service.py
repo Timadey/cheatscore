@@ -14,7 +14,8 @@ from app.models import FaceEnrollment
 from app.schemas import EnrollmentResponse, EmbeddingInfo
 from app.inference.face_detection import face_detector_loaded
 from app.inference.face_verification import face_verifier_loaded
-from app.utils.image_utils import decode_base64_image, validate_image_quality
+from app.inference.face_verification import face_verifier_loaded
+from app.utils.image_utils import decode_base64_image, validate_image_quality, encode_image_base64
 from app.utils.vector_db import VectorDB
 from app.exceptions import (
     ImageDecodeError,
@@ -140,7 +141,8 @@ class EnrollmentService:
                     "brightness_score": quality_metrics["brightness"],
                     "face_bbox": detection["bbox"],
                     "landmarks": detection.get("landmarks", []),
-                    "confidence": detection.get("confidence", 0.0)
+                    "confidence": detection.get("confidence", 0.0),
+                    "original_image": img  # Store reference to image for cropping
                 })
                 
             except Exception as e:
@@ -193,11 +195,35 @@ class EnrollmentService:
             existing_enrollment.sharpness_score = best_embeddings[0]["sharpness_score"]
             existing_enrollment.brightness_score = best_embeddings[0]["brightness_score"]
             existing_enrollment.face_bbox = best_embeddings[0]["face_bbox"]
+            
+            # Extract face crop for update as well
+            best_match = best_embeddings[0]
+            x1, y1, x2, y2 = best_match["face_bbox"]
+            original_img = best_match["original_image"]
+            h, w = original_img.shape[:2]
+            x1, y1 = max(0, x1), max(0, y1)
+            x2, y2 = min(w, x2), min(h, y2)
+            face_crop = original_img[y1:y2, x1:x2]
+            existing_enrollment.face_image = encode_image_base64(face_crop)
+            
             if metadata:
                 existing_enrollment.extra_metadata = metadata
             enrollment_id = str(existing_enrollment.id)
             embedding_id = existing_enrollment.embedding_id
         else:
+            # Extract face crop from the best image
+            best_match = best_embeddings[0]
+            x1, y1, x2, y2 = best_match["face_bbox"]
+            original_img = best_match["original_image"]
+            
+            # Ensure coordinates are within bounds
+            h, w = original_img.shape[:2]
+            x1, y1 = max(0, x1), max(0, y1)
+            x2, y2 = min(w, x2), min(h, y2)
+            
+            face_crop = original_img[y1:y2, x1:x2]
+            face_image_base64 = encode_image_base64(face_crop)
+
             # Create new enrollment record
             enrollment = FaceEnrollment(
                 candidate_id=candidate_id,
@@ -208,6 +234,7 @@ class EnrollmentService:
                 sharpness_score=best_embeddings[0]["sharpness_score"],
                 brightness_score=best_embeddings[0]["brightness_score"],
                 face_bbox=best_embeddings[0]["face_bbox"],
+                face_image=face_image_base64,
                 metadata=metadata
             )
             db.add(enrollment)

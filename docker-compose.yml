@@ -1,22 +1,22 @@
 #version: '3.8'
 #
 services:
-#   postgres:
-#     image: postgres:15
-#     environment:
-#       POSTGRES_DB: sd_proctor
-#       POSTGRES_USER: postgres
-#       POSTGRES_PASSWORD: postgres
-#     ports:
-#       - "5433:5432"
-#     volumes:
-#       - postgres_data:/var/lib/postgresql/data
-#     healthcheck:
-#       test: ["CMD-SHELL", "pg_isready -U postgres"]
-#       interval: 10s
-#       timeout: 5s
-#       retries: 5
-#
+  #   postgres:
+  #     image: postgres:15
+  #     environment:
+  #       POSTGRES_DB: sd_proctor
+  #       POSTGRES_USER: postgres
+  #       POSTGRES_PASSWORD: postgres
+  #     ports:
+  #       - "5433:5432"
+  #     volumes:
+  #       - postgres_data:/var/lib/postgresql/data
+  #     healthcheck:
+  #       test: ["CMD-SHELL", "pg_isready -U postgres"]
+  #       interval: 10s
+  #       timeout: 5s
+  #       retries: 5
+  #
   # redis:
   #   image: redis:7-alpine
   #   ports:
@@ -28,50 +28,51 @@ services:
   #     interval: 10s
   #     timeout: 5s
   #     retries: 5
-##
-##  kafka:
-##    image: bitnami/kafka:latest # <--- The fixed line
-##    ports:
-##      - "9092:9092"
-##    environment:
-##      # Kafka setup for single-node (standalone) KRaft mode
-##      KAFKA_CFG_NODE_ID: 0
-##      KAFKA_CFG_PROCESS_ROLES: controller,broker
-##      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-##      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092 # Note: 'kafka' will resolve to the service name in the Docker network
-##      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-##      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 0@kafka:9093
-##      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
-##      # Required for Bitnami image for non-secure listeners
-##      ALLOW_PLAINTEXT_LISTENER: "yes"
-##    volumes:
-##      - kafka_data:/bitnami/kafka
-#
-#
+  ##
+  ##  kafka:
+  ##    image: bitnami/kafka:latest # <--- The fixed line
+  ##    ports:
+  ##      - "9092:9092"
+  ##    environment:
+  ##      # Kafka setup for single-node (standalone) KRaft mode
+  ##      KAFKA_CFG_NODE_ID: 0
+  ##      KAFKA_CFG_PROCESS_ROLES: controller,broker
+  ##      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+  ##      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092 # Note: 'kafka' will resolve to the service name in the Docker network
+  ##      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+  ##      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 0@kafka:9093
+  ##      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+  ##      # Required for Bitnami image for non-secure listeners
+  ##      ALLOW_PLAINTEXT_LISTENER: "yes"
+  ##    volumes:
+  ##      - kafka_data:/bitnami/kafka
+  #
+  #
   sd-proctor:
     build: .
     ports:
       - "8000:8000"
-#    environment:
-#      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/sd_proctor
-#      REDIS_URL: redis://redis:6379/0
-#      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    #    environment:
+    #      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/sd_proctor
+    #      REDIS_URL: redis://redis:6379/0
+    #      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     # depends_on:
     #   postgres:
     #     condition: service_healthy
     #   redis:
     #     condition: service_healthy
-#      kafka:
-#        condition: service_started
-    privileged: true
-    security_opt:
-      - seccomp:unconfined
-      - apparmor:unconfined  # Add this line
+    #      kafka:
+    #        condition: service_started
+    #    privileged: true
+    #    security_opt:
+    #      - seccomp:unconfined
+    #      - apparmor:unconfined  # Add this line
     restart: unless-stopped
     volumes:
       - ./app:/app/app
       - ./models:/app/.insightface
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
 #
 # volumes:
 #   postgres_data:

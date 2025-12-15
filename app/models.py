@@ -57,6 +57,9 @@ class FaceEnrollment(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     extra_metadata = Column(JSON, nullable=True)  # Renamed from 'metadata' to avoid SQLAlchemy conflict
+    
+    # Store the actual face crop used for enrollment (base64 encoded)
+    face_image = Column(Text, nullable=True)
 
     __table_args__ = (
         Index("idx_enrollment_candidate", "candidate_id"),
