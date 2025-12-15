@@ -12,8 +12,8 @@ from sqlalchemy import select
 
 from app.models import FaceEnrollment
 from app.schemas import EnrollmentResponse, EmbeddingInfo
-from app.inference.face_detection import FaceDetector
-from app.inference.face_verification import FaceVerifier
+from app.inference.face_detection import face_detector_loaded
+from app.inference.face_verification import face_verifier_loaded
 from app.utils.image_utils import decode_base64_image, validate_image_quality
 from app.utils.vector_db import VectorDB
 from app.exceptions import (
@@ -35,8 +35,8 @@ class EnrollmentService:
     
     def __init__(self):
         """Initialize enrollment service."""
-        self.face_detector = FaceDetector()
-        self.face_verifier = FaceVerifier()
+        self.face_detector = face_detector_loaded
+        self.face_verifier = face_verifier_loaded
     
     async def enroll_candidate(
         self,
