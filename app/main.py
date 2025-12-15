@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
+from pathlib import Path
 
 from app.config import settings
 from app.api.v1 import enrollment, verification, session, admin, webrtc
@@ -102,7 +103,8 @@ async def root():
 
 @app.get("/test")
 async def read_index():
-    return FileResponse('frontend_test.html')
+    file_path = Path(__file__).parent / "frontend_test.html"
+    return FileResponse(file_path)
 
 if __name__ == "__main__":
     import uvicorn
