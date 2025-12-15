@@ -50,16 +50,7 @@ class WebRTCGatewayAdapter:
     ) -> AsyncIterator[Optional[AlertEvent]]:
         """
         Receive and process frames from WebRTC stream.
-        
-        Args:
-            exam_session_id: Exam session identifier
-            candidate_id: Candidate identifier
-            frame_stream: Async iterator of frame bytes (H.264 encoded)
-            frame_metadata: Optional frame metadata
-            db_session: Database session for loading embeddings
-            
-        Yields:
-            AlertEvent if anomaly detected, None otherwise
+        Decoupled architecture: Producer (WebRTC) -> Latest Frame -> Consumer (Verification)
         """
         # Ensure session is active
         if not await self.session_service.is_session_active(exam_session_id):
@@ -81,52 +72,105 @@ class WebRTCGatewayAdapter:
         
         logger.info(f"Loaded enrolled embedding for candidate {candidate_id}, session {exam_session_id}")
         
-        frame_count = 0
+        # Shared state
+        latest_frame = {"data": None, "timestamp": None}
+        processing_active = True
         
+        # Producer Task: Read frames from stream and update latest_frame
+        async def frame_producer():
+            frame_count = 0
+            try:
+                async for frame_bytes in frame_stream:
+                    if not processing_active:
+                        break
+                        
+                    frame_count += 1
+                    # Update latest frame immediately
+                    # We store bytes to defer decoding to the consumer to keep producer fast
+                    latest_frame["data"] = frame_bytes
+                    latest_frame["timestamp"] = datetime.utcnow()
+                    
+                    # Update session frame count (lightweight)
+                    # We might want to throttle this DB update or do it in consumer
+                    # For now keep it here to track actual received frames
+                    if frame_count % 30 == 0:  # Update every ~1s (assuming 30fps)
+                        try:
+                            await self.session_service.increment_frame_count(exam_session_id)
+                        except Exception as e:
+                            logger.warning(f"Failed to increment frame count: {e}")
+                            
+            except Exception as e:
+                logger.error(f"Error in frame producer: {e}", exc_info=True)
+            finally:
+                nonlocal processing_active
+                processing_active = False
+        
+        # Start producer
+        producer_task = asyncio.create_task(frame_producer())
+        
+        # Consumer Loop: Periodically process the latest frame
         try:
-            async for frame_bytes in frame_stream:
-                frame_count += 1
-                timestamp = datetime.utcnow()
+            # Determine processing interval
+            # If verification frequency is 10 (every 10 frames), and fps is 30, that's 3 times/sec.
+            # But here frequency is simpler: how often do we WANT to verify per second?
+            # Let's say we want 5Hz verification for responsiveness. 
+            verification_interval = 0.2 # 5 times per second
+            
+            while processing_active:
+                start_time = asyncio.get_event_loop().time()
                 
-                try:
-                    # Decode frame (H.264 to RGB)
-                    frame = self._decode_frame(frame_bytes)
+                # Check if we have a frame
+                if latest_frame["data"] is not None:
+                    # Grab reference and clear (or just read latest)
+                    current_frame_bytes = latest_frame["data"]
+                    timestamp = latest_frame["timestamp"]
                     
-                    if frame is None:
-                        logger.warning(f"Failed to decode frame {frame_count}")
-                        continue
+                    # Avoid re-processing same frame if stream is slow
+                    # We can clear it after reading to ensure unique processing
+                    latest_frame["data"] = None 
                     
-                    # Store frame in buffer
-                    # frame_id = await self.frame_buffer.store_frame(
-                    #     exam_session_id=exam_session_id,
-                    #     frame=frame,
-                    #     timestamp=timestamp,
-                    #     metadata=frame_metadata
-                    # )
-                    #
-                    # Update session frame count
-                    await self.session_service.increment_frame_count(exam_session_id)
-                    
-                    # Continuous verification with enrolled embedding
-                    alert = await self.continuous_verifier.verify_frame_continuous(
-                        exam_session_id=exam_session_id,
-                        candidate_id=candidate_id,
-                        frame=frame,
-                        timestamp=timestamp,
-                        enrolled_embedding=enrolled_embedding
-                    )
-                    
-                    if alert:
-                        yield alert
-                    
-                    yield None
-                    
-                except Exception as e:
-                    logger.error(f"Error processing frame {frame_count}: {e}", exc_info=True)
-                    continue
+                    try:
+                        # Decode
+                        frame = self._decode_frame(current_frame_bytes)
+                        
+                        if frame is not None:
+                            # Verify
+                            alert = await self.continuous_verifier.verify_frame_continuous(
+                                exam_session_id=exam_session_id,
+                                candidate_id=candidate_id,
+                                frame=frame,
+                                timestamp=timestamp,
+                                enrolled_embedding=enrolled_embedding
+                            )
+                            
+                            if alert:
+                                yield alert
+                                
+                    except Exception as e:
+                        logger.error(f"Error processing frame: {e}")
+                
+                # Wait for next cycle
+                elapsed = asyncio.get_event_loop().time() - start_time
+                sleep_time = max(0.01, verification_interval - elapsed)
+                
+                # Yield control to allow producer to run
+                await asyncio.sleep(sleep_time)
+                
+                # Check if producer finished
+                if producer_task.done():
+                    break
                     
         except Exception as e:
-            logger.error(f"Error in frame stream processing: {e}", exc_info=True)
+            logger.error(f"Error in frame consumer: {e}", exc_info=True)
+        finally:
+            processing_active = False
+            # Ensure producer task is cleaned up
+            if not producer_task.done():
+                producer_task.cancel()
+                try:
+                    await producer_task
+                except asyncio.CancelledError:
+                    pass
     
     def _decode_frame(self, frame_bytes: bytes) -> Optional[np.ndarray]:
         """

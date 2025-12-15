@@ -35,8 +35,8 @@ class ContinuousVerifier:
                 "verification_count": 0,
                 "consecutive_mismatches": 0,
                 "last_verification_time": None,
-                "multiple_faces_duration": 0.0,
-                "no_face_duration": 0.0,
+                "multiple_faces_start_time": None,
+                "no_face_start_time": None,
                 "last_face_detection_time": None
             }
         return self.session_state[exam_session_id]
@@ -44,14 +44,16 @@ class ContinuousVerifier:
     def _should_verify_frame(self, state: Dict[str, Any]) -> bool:
         """
         Determine if current frame should be verified.
-
+        
         Args:
             state: Session state dictionary
-
+            
         Returns:
             True if frame should be verified
         """
-        return state["frame_count"] % settings.webrtc_verification_frequency == 0
+        # With decoupled processing, we verify every frame we actually process
+        # The logic for skipping frames is now handled by the GatewayAdapter consumer
+        return True
 
     def _handle_multiple_faces(
         self,
@@ -63,21 +65,19 @@ class ContinuousVerifier:
     ) -> Optional[AlertEvent]:
         """
         Handle multiple faces detection.
-
-        Args:
-            exam_session_id: Exam session ID
-            candidate_id: Candidate ID
-            detections: List of detected faces
-            state: Session state
-            timestamp: Current timestamp
-
-        Returns:
-            AlertEvent if threshold exceeded, None otherwise
         """
         if len(detections) > 1:
-            state["multiple_faces_duration"] += (1.0 / 30.0)  # Assume 30 FPS
-
-            if state["multiple_faces_duration"] >= 3.0:  # 3 seconds
+            if state["multiple_faces_start_time"] is None:
+                state["multiple_faces_start_time"] = timestamp
+            
+            duration = (timestamp - state["multiple_faces_start_time"]).total_seconds()
+            
+            if duration >= 3.0:  # 3 seconds
+                # Reset timer to avoid flooding alerts for the same event
+                # Or keep it set if we want to alert periodically? 
+                # For now, let's reset to send another alert after 3 more seconds
+                state["multiple_faces_start_time"] = timestamp
+                
                 return self._create_alert(
                     exam_session_id=exam_session_id,
                     candidate_id=candidate_id,
@@ -85,13 +85,13 @@ class ContinuousVerifier:
                     severity_score=0.85,
                     evidence={
                         "face_count": len(detections),
-                        "duration_seconds": state["multiple_faces_duration"]
+                        "duration_seconds": duration
                     },
                     timestamp=timestamp
                 )
         else:
-            state["multiple_faces_duration"] = 0.0
-
+            state["multiple_faces_start_time"] = None
+            
         return None
 
     def _handle_no_face(
@@ -103,34 +103,31 @@ class ContinuousVerifier:
     ) -> Optional[AlertEvent]:
         """
         Handle no face detection.
-
-        Args:
-            exam_session_id: Exam session ID
-            candidate_id: Candidate ID
-            state: Session state
-            timestamp: Current timestamp
-
-        Returns:
-            AlertEvent if threshold exceeded, None otherwise
         """
-        state["no_face_duration"] += 1
+        if state["no_face_start_time"] is None:
+            state["no_face_start_time"] = timestamp
+            
+        duration = (timestamp - state["no_face_start_time"]).total_seconds()
         state["last_face_detection_time"] = None
-
-        logger.debug(f"No face detected. Duration: {state['no_face_duration']}s")
-
-        if state["no_face_duration"] >= 5.0:  # 5 seconds
+        
+        logger.debug(f"No face detected. Duration: {duration:.2f}s")
+        
+        if duration >= 5.0:  # 5 seconds
             logger.info("No face detected for prolonged period")
+            # Reset timer to create periodic alerts if condition persists
+            state["no_face_start_time"] = timestamp
+            
             return self._create_alert(
                 exam_session_id=exam_session_id,
                 candidate_id=candidate_id,
                 event_type=EventType.FACE_NOT_FOUND,
                 severity_score=0.90,
                 evidence={
-                    "duration_seconds": state["no_face_duration"]
+                    "duration_seconds": duration
                 },
                 timestamp=timestamp
             )
-
+            
         return None
 
     def _handle_face_verification(
@@ -265,7 +262,7 @@ class ContinuousVerifier:
                     timestamp
                 )
             else:
-                state["no_face_duration"] = 0.0
+                state["no_face_start_time"] = None
                 state["last_face_detection_time"] = timestamp
 
             # Verify face if exactly one detected

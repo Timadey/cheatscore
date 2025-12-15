@@ -8,6 +8,7 @@ pydantic-settings==2.1.0
 sqlalchemy==2.0.23
 asyncpg==0.29.0
 alembic==1.12.1
+psycopg2-binary==2.9.9
 
 # Redis
 redis==5.0.1
