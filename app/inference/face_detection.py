@@ -235,3 +235,5 @@ class FaceDetector(InsightFaceBase):
             bbox,
             min_face_size=settings.min_face_size
         )
+
+face_detector_loaded = FaceDetector()

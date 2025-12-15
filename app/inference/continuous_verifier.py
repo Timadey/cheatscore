@@ -6,8 +6,8 @@ from typing import Optional, Dict, Any
 from datetime import datetime
 import logging
 
-from app.inference.face_detection import FaceDetector
-from app.inference.face_verification import FaceVerifier
+from app.inference.face_detection import face_detector_loaded
+from app.inference.face_verification import face_verifier_loaded
 from app.services.verification_service import VerificationService
 from app.schemas import AlertEvent, EventType, AlertEvidence
 from app.config import settings
@@ -20,8 +20,8 @@ class ContinuousVerifier:
 
     def __init__(self):
         """Initialize continuous verifier."""
-        self.face_detector = FaceDetector()
-        self.face_verifier = FaceVerifier()
+        self.face_detector = face_detector_loaded
+        self.face_verifier = face_verifier_loaded
         self.verification_service = VerificationService()
 
         # Track state per session

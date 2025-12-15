@@ -301,3 +301,5 @@ class FaceVerifier(InsightFaceBase):
         is_match = similarity >= threshold
 
         return is_match, similarity
+
+face_verifier_loaded = FaceVerifier()
