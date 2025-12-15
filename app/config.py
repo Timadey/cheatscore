@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     # =========================
     app_name: str = Field(default="SD Proctor")
     app_version: str = Field(default="0.1.0")
+    app_url: str = Field(default="http://localhost:8000")
     debug: bool = Field(default=False)
 
     # =========================

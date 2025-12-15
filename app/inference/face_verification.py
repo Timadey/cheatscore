@@ -40,17 +40,18 @@ class FaceVerifier(InsightFaceBase):
         self._load_model()
 
     def _load_model(self):
-        """Load the face verification model using InsightFace."""
+        """Load the face verification model using global manager."""
         try:
-            logger.info(f"Loading InsightFace recognition model: {self.model_name}")
+            logger.info(f"Loading InsightFace recognition model from manager: {self.model_name}")
 
-            super()._load_model()
+            from app.inference.face_model_manager import FaceModelManager
+            self.app = FaceModelManager.get_instance().get_app()
 
             # Verify embedding dimension with a dummy image
             self._verify_embedding_dimension()
 
             logger.info(
-                f"Face verification model loaded successfully. "
+                f"Face verification model loaded successfully from manager. "
                 f"Embedding dim: {self.embedding_dim}, Device: {self.device}"
             )
 

@@ -37,11 +37,13 @@ class FaceDetector(InsightFaceBase):
         self._load_model()
 
     def _load_model(self):
-        """Load the face detection model using InsightFace."""
+        """Load the face detection model using global manager."""
         try:
-            super()._load_model(det_thresh=self.confidence_threshold)
+            # Use global model manager
+            from app.inference.face_model_manager import FaceModelManager
+            self.app = FaceModelManager.get_instance().get_app()
         except Exception as e:
-            logger.error(f"Failed to load InsightFace model: {e}")
+            logger.error(f"Failed to load InsightFace model from manager: {e}")
             # Fall back to OpenCV if InsightFace fails
             logger.warning("Falling back to OpenCV face detection")
             self.app = None

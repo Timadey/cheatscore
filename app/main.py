@@ -37,6 +37,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
         logger.warning("Application will continue but database operations may fail")
+
+    # Initialize AI models
+    try:
+        from app.inference.face_model_manager import FaceModelManager
+        # blocking call to load models
+        FaceModelManager.get_instance().initialize()
+    except Exception as e:
+        logger.error(f"Failed to initialize AI models: {e}")
+        # Depending on requirements, we might want to raise here
+
     
     # Initialize alert dispatcher
     alert_dispatcher = AlertDispatcher()
@@ -103,8 +113,16 @@ async def root():
 
 @app.get("/test")
 async def read_index():
+    from fastapi.responses import HTMLResponse
     file_path = Path(__file__).parent / "frontend_test.html"
-    return FileResponse(file_path)
+    
+    with open(file_path, "r") as f:
+        content = f.read()
+    
+    # Replace placeholder with actual setting
+    content = content.replace("{{APP_URL}}", settings.app_url)
+    
+    return HTMLResponse(content=content)
 
 if __name__ == "__main__":
     import uvicorn
