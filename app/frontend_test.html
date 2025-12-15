@@ -269,7 +269,7 @@
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:8000';
+        const API_BASE = 'https://sd-cams-backend-proctor-07g0nq-ef46ea-152-53-241-136.traefik.me';
         let videoStream = null;
         let frameWebSocket = null;
         let alertWebSocket = null;
@@ -394,7 +394,7 @@
         
         // Connect to alert WebSocket
         function connectAlertWebSocket(sessionId) {
-            const wsUrl = `ws://localhost:8000/api/v1/session/ws/${sessionId}`;
+            const wsUrl = `wss://sd-cams-backend-proctor-07g0nq-ef46ea-152-53-241-136.traefik.me/api/v1/session/ws/${sessionId}`;
             alertWebSocket = new WebSocket(wsUrl);
             
             alertWebSocket.onopen = () => {
@@ -439,7 +439,7 @@
             }
             
             // Connect to frame WebSocket
-            const wsUrl = `ws://localhost:8000/api/v1/webrtc/frames/${sessionId}`;
+            const wsUrl = `wss://sd-cams-backend-proctor-07g0nq-ef46ea-152-53-241-136.traefik.me/api/v1/webrtc/frames/${sessionId}`;
             frameWebSocket = new WebSocket(wsUrl);
             
             frameWebSocket.onopen = () => {
