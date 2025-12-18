@@ -66,7 +66,7 @@ class FaceDetector(InsightFaceBase):
             return self._detect_opencv_fallback(frame)
 
         try:
-            # InsightFace expects RGB format
+            # InsightFace expects BGR format (no conversion needed)
             img_rgb = FaceProcessingUtils.convert_bgr_to_rgb(frame)
 
             # Get face detections
@@ -97,7 +97,8 @@ class FaceDetector(InsightFaceBase):
                     detections.append({
                         "bbox": bbox,
                         "landmarks": landmarks,
-                        "confidence": confidence
+                        "confidence": confidence,
+                        "face": face
                     })
 
             return detections

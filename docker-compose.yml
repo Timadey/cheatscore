@@ -52,26 +52,35 @@ services:
     build: .
     ports:
       - "8000:8000"
-    #    environment:
-    #      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/sd_proctor
-    #      REDIS_URL: redis://redis:6379/0
-    #      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-    # depends_on:
-    #   postgres:
-    #     condition: service_healthy
-    #   redis:
-    #     condition: service_healthy
-    #      kafka:
-    #        condition: service_started
-    #    privileged: true
-    #    security_opt:
-    #      - seccomp:unconfined
-    #      - apparmor:unconfined  # Add this line
     restart: unless-stopped
     volumes:
       - ./app:/app/app
       - ./models:/app/.insightface
+    environment:
+      # Backend sees coturn via docker network alias
+      - WEBRTC_TURN_SERVERS=[{"urls":"turn:coturn:3478","username":"user","credential":"password"}]
+      - WEBRTC_STUN_SERVERS=stun:stun.l.google.com:19302
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  coturn:
+    image: coturn/coturn:latest
+    restart: always
+    ports:
+      - "3478:3478/tcp"
+      - "3478:3478/udp"
+      - "5349:5349/tcp"
+      - "5349:5349/udp"
+      - "49152-49200:49152-49200/udp"
+    entrypoint:
+      - turnserver
+      - "-n"
+      - "--log-file=stdout"
+      - "--min-port=49152"
+      - "--max-port=49200"
+      - "--user=user:password"
+      - "--realm=myrealm"
+      - "--external-ip=10.120.161.104"
+      - "--listening-port=3478"
 
 #
 # volumes:

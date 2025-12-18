@@ -64,17 +64,22 @@ class Settings(BaseSettings):
     max_pose_deviation: float = 20.0
 
     # =========================
-    # Gaze Tracking
+    # Gaze & Head Pose Tracking
     # =========================
+    attention_check_fps: int = 4
+    gaze_off_screen_threshold: float = 5.0
+    head_pose_yaw_threshold: float = 30.0
+    head_pose_pitch_threshold: float = 25.0
+
     gaze_pitch_range: str = "-15,25"
     gaze_yaw_range: str = "-30,30"
-    gaze_off_screen_duration: float = 4.0
+    gaze_off_screen_duration: float = 5.0  # Kept for backward compat if needed, synced with threshold
 
     # =========================
     # WebRTC
     # =========================
     webrtc_stun_servers: str
-    webrtc_turn_servers: str = ""
+    webrtc_turn_servers: str
     webrtc_frame_buffer_size: int = 150
     webrtc_verification_frequency: int = 10
     webrtc_alert_websocket_path: str = "/api/v1/session/ws"

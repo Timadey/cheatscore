@@ -1,6 +1,7 @@
 """
 SQLAlchemy database models for SD Proctor service.
 """
+import numpy as np
 from sqlalchemy import Column, String, Float, Integer, DateTime, JSON, Text, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
@@ -39,7 +40,7 @@ class FaceEnrollment(Base):
     embedding_id = Column(String(100), unique=True, nullable=False, index=True)
     
     # Embedding stored in vector database (pgvector) for production-grade similarity search
-    embedding = Column(JSON, nullable=False) # use json for dev for now
+    _embedding_json = Column('embedding', JSON, nullable=False)
     embedding_dim = Column(Integer, default=512, nullable=False)
     
     # Quality metrics
@@ -65,6 +66,25 @@ class FaceEnrollment(Base):
         Index("idx_enrollment_candidate", "candidate_id"),
         Index("idx_enrollment_quality", "quality_score"),
     )
+
+    # --- Add the automated property ---
+    @property
+    def embedding(self) -> np.ndarray:
+        """Retrieves the embedding as a NumPy array."""
+        if self._embedding_json is None:
+            return None
+        # Convert the stored list back to a NumPy array on retrieval
+        return np.array(self._embedding_json, dtype=np.float32)
+
+    @embedding.setter
+    def embedding(self, value: np.ndarray | list):
+        """Saves the embedding, converting NumPy arrays to lists automatically."""
+        if isinstance(value, np.ndarray):
+            # Convert NumPy array to a Python list for JSON storage
+            self._embedding_json = value.tolist()
+        else:
+            # Assume it's already a list or None
+            self._embedding_json = value
 
 
 class AlertLog(Base):

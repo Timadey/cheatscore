@@ -1,658 +1,381 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SD Proctor - Frontend Test</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            padding: 30px;
-        }
-
-        h1 {
-            color: #333;
-            margin-bottom: 10px;
-        }
-
-        .subtitle {
-            color: #666;
-            margin-bottom: 30px;
-        }
-
-        .section {
-            margin-bottom: 30px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 8px;
-        }
-
-        .section h2 {
-            color: #495057;
-            margin-bottom: 15px;
-            font-size: 1.2em;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-            color: #495057;
-            font-weight: 500;
-        }
-
-        input,
-        select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-
-        button {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: background 0.3s;
-        }
-
-        button:hover {
-            background: #5568d3;
-        }
-
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-
-        .status {
-            padding: 10px;
-            border-radius: 6px;
-            margin-top: 10px;
-            font-size: 14px;
-        }
-
-        .status.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .status.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .status.info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-
-        .video-container {
-            position: relative;
-            width: 100%;
-            max-width: 640px;
-            margin: 20px 0;
-            border-radius: 8px;
-            overflow: hidden;
-            background: #000;
-        }
-
-        video {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-
-        .canvas-container {
-            margin-top: 20px;
-        }
-
-        canvas {
-            border: 2px solid #667eea;
-            border-radius: 8px;
-            max-width: 100%;
-        }
-
-        .alerts {
-            max-height: 300px;
-            overflow-y: auto;
-            margin-top: 15px;
-        }
-
-        .alert-item {
-            padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 6px;
-            border-left: 4px solid;
-        }
-
-        .alert-item.high {
-            background: #fff3cd;
-            border-color: #ffc107;
-        }
-
-        .alert-item.critical {
-            background: #f8d7da;
-            border-color: #dc3545;
-        }
-
-        .alert-item .alert-header {
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-
-        .alert-item .alert-time {
-            font-size: 12px;
-            color: #666;
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .stat-value {
-            font-size: 24px;
-            font-weight: bold;
-            color: #667eea;
-        }
-
-        .stat-label {
-            font-size: 12px;
-            color: #666;
-            margin-top: 5px;
-        }
-    </style>
+    <title>WebRTC Test</title>
 </head>
 
 <body>
-    <div class="container">
-        <h1>🎥 SD Proctor - Frontend Test</h1>
-        <p class="subtitle">Test face enrollment, verification, and real-time proctoring</p>
+    <div style="font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
+        <h2>AI Proctoring Test Handler</h2>
 
-        <!-- Enrollment Section -->
-        <div class="section">
-            <h2>1. Face Enrollment</h2>
-            <div class="form-group">
-                <label>Candidate ID:</label>
-                <input type="text" id="candidateId" placeholder="CAND-001" value="CAND-001">
-            </div>
-
-            <!-- Get Enrollment Section -->
-            <div class="section">
-                <h2>1.5 Check Enrollment</h2>
-                <div class="form-group">
-                    <label>Candidate ID:</label>
-                    <input type="text" id="checkCandidateId" placeholder="CAND-001" value="CAND-001">
-                </div>
-                <button onclick="checkEnrollment()">Get Enrollment Details</button>
-                <div id="checkStatus"></div>
-                <div id="enrollmentDetails" style="margin-top: 15px; display: none;">
-                    <h3>Enrollment Data</h3>
-                    <div style="display: flex; gap: 20px; align-items: start; margin-top: 10px;">
-                        <div>
-                            <img id="enrolledFaceImage"
-                                style="max-width: 150px; border-radius: 8px; border: 2px solid #667eea;">
-                            <div style="text-align: center; font-size: 12px; color: #666; margin-top: 5px;">Enrolled
-                                Face</div>
-                        </div>
-                        <div>
-                            <p><strong>Candidate:</strong> <span id="detailCandidateId"></span></p>
-                            <p><strong>Enrollment ID:</strong> <span id="detailEnrollmentId"></span></p>
-                            <p><strong>Quality Score:</strong> <span id="detailQuality"></span></p>
-                            <p><strong>Sharpness:</strong> <span id="detailSharpness"></span></p>
-                            <p><strong>Timestamp:</strong> <span id="detailTimestamp"></span></p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Get Enrollment Section -->
-            <div class="section">
-                <h2>1.5 Check Enrollment</h2>
-                <div class="form-group">
-                    <label>Candidate ID:</label>
-                    <input type="text" id="checkCandidateId" placeholder="CAND-001" value="CAND-001">
-                </div>
-                <button onclick="checkEnrollment()">Get Enrollment Details</button>
-                <div id="checkStatus"></div>
-                <div id="enrollmentDetails" style="margin-top: 15px; display: none;">
-                    <h3>Enrollment Data</h3>
-                    <div style="display: flex; gap: 20px; align-items: start; margin-top: 10px;">
-                        <div>
-                            <img id="enrolledFaceImage"
-                                style="max-width: 150px; border-radius: 8px; border: 2px solid #667eea;">
-                            <div style="text-align: center; font-size: 12px; color: #666; margin-top: 5px;">Enrolled
-                                Face</div>
-                        </div>
-                        <div>
-                            <p><strong>Candidate:</strong> <span id="detailCandidateId"></span></p>
-                            <p><strong>Enrollment ID:</strong> <span id="detailEnrollmentId"></span></p>
-                            <p><strong>Quality Score:</strong> <span id="detailQuality"></span></p>
-                            <p><strong>Sharpness:</strong> <span id="detailSharpness"></span></p>
-                            <p><strong>Timestamp:</strong> <span id="detailTimestamp"></span></p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <button onclick="captureAndEnroll()">Capture & Enroll Face</button>
-            <div id="enrollmentStatus"></div>
+        <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <h3>1. Configuration</h3>
+            <label>Candidate ID: <input type="text" id="candidateId" value="test-candidate-1"></label>
+            <label>Session ID: <input type="text" id="sessionId" value="test-session-1"></label>
         </div>
 
-        <!-- Session Start Section -->
-        <div class="section">
-            <h2>2. Start Exam Session</h2>
-            <div class="form-group">
-                <label>Exam Session ID:</label>
-                <input type="text" id="sessionId" placeholder="SESS-001" value="SESS-001">
+        <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <h3>2. Enrollment</h3>
+            <p>Capture 3 images to enroll your face.</p>
+            <button onclick="startCamera()" id="btnStartCamera">Start Camera</button>
+            <button onclick="stopCamera()" id="btnStopCamera" disabled>Stop Camera</button>
+            <button onclick="captureEnrollmentImages()" id="btnCapture" disabled>Capture & Enroll</button>
+            <div id="enrollmentStatus" style="margin-top: 5px;"></div>
+            <div id="enrollmentDetails"
+                style="margin-top: 5px; font-size: 0.9em; box-shadow: 0 0 5px #ccc; padding: 10px; display: none;">
             </div>
-            <div class="form-group">
-                <label>Candidate ID:</label>
-                <input type="text" id="sessionCandidateId" placeholder="CAND-001" value="CAND-001">
-            </div>
+            <button onclick="fetchEnrollmentDetails()" style="margin-top: 10px;">Fetch Details</button>
+        </div>
+
+        <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <h3>3. Exam Session</h3>
             <button onclick="startSession()">Start Session</button>
-            <div id="sessionStatus"></div>
+            <button onclick="connectWebRTC()" id="btnConnect" disabled>Connect WebRTC</button>
+            <button onclick="disconnectWebRTC()" id="btnDisconnect" disabled>Disconnect</button>
+            <div id="sessionStatus" style="margin-top: 5px;"></div>
         </div>
 
-        <!-- Video Capture Section -->
-        <div class="section">
-            <h2>3. Video Stream</h2>
-            <div class="video-container">
-                <video id="video" autoplay playsinline></video>
+        <h3>Live Monitor</h3>
+        <div style="display: flex; gap: 20px;">
+            <div>
+                <h4>Local Stream</h4>
+                <video id="video" autoplay playsinline muted width="320" height="240"
+                    style="background: black;"></video>
+                <div id="cameraStatus" style="margin-top: 5px; font-size: 0.9em; color: #666;"></div>
             </div>
-            <div class="canvas-container">
-                <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
-            </div>
-            <button id="startStreamBtn" onclick="startVideoStream()">Start Video Stream</button>
-            <button id="stopStreamBtn" onclick="stopVideoStream()" disabled>Stop Stream</button>
-            <div id="streamStatus"></div>
-        </div>
-
-        <!-- Alerts Section -->
-        <div class="section">
-            <h2>4. Real-Time Alerts</h2>
-            <div class="stats">
-                <div class="stat-card">
-                    <div class="stat-value" id="frameCount">0</div>
-                    <div class="stat-label">Frames Sent</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="alertCount">0</div>
-                    <div class="stat-label">Alerts Received</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="connectionStatus">Disconnected</div>
-                    <div class="stat-label">WebSocket Status</div>
+            <div style="flex-grow: 1;">
+                <h4>Real-time Alerts (DataChannel)</h4>
+                <div id="alerts"
+                    style="border:1px solid #ccc; height: 240px; overflow-y: auto; padding: 10px; background: #fff;">
+                    <i>Waiting for connection...</i>
                 </div>
             </div>
-            <div class="alerts" id="alertsContainer"></div>
         </div>
     </div>
 
     <script>
-        // Dynamic URL from server
-        const API_BASE = '{{APP_URL}}';
+        const APP_URL = "{{APP_URL}}"; // Will be replaced by backend
+        let pc;
+        let dc;
+        let stream;
 
-        // Derive WebSocket URL from API_BASE
-        const WS_PROTOCOL = API_BASE.startsWith('https') ? 'wss' : 'ws';
-        const WS_BASE = API_BASE.replace(/^http/, 'ws').replace(/^https/, 'wss');
-
-        let videoStream = null;
-        let frameWebSocket = null;
-        let alertWebSocket = null;
-        let frameInterval = null;
-        let frameCount = 0;
-        let alertCount = 0;
-
-        // Initialize video
-        async function initVideo() {
+        async function startCamera() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: 640, height: 480, facingMode: 'user' },
-                    audio: false
-                });
-                const video = document.getElementById('video');
-                video.srcObject = stream;
-                videoStream = stream;
-                return true;
-            } catch (error) {
-                showStatus('streamStatus', 'Error accessing camera: ' + error.message, 'error');
-                return false;
+                stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                document.getElementById("video").srcObject = stream;
+
+                // Update UI
+                document.getElementById("btnStartCamera").disabled = true;
+                document.getElementById("btnStopCamera").disabled = false;
+                document.getElementById("btnCapture").disabled = false;
+                document.getElementById("cameraStatus").innerHTML = '<span style="color: green;">● Camera Active</span>';
+            } catch (e) {
+                alert("Camera error: " + e.message);
+                document.getElementById("cameraStatus").innerHTML = '<span style="color: red;">Camera Error</span>';
             }
         }
 
-        // Capture frame from video
-        function captureFrame() {
-            const video = document.getElementById('video');
-            const canvas = document.getElementById('canvas');
-            const ctx = canvas.getContext('2d');
+        function stopCamera() {
+            if (stream) {
+                // Stop all tracks
+                stream.getTracks().forEach(track => track.stop());
 
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            return canvas.toDataURL('image/jpeg', 0.8).split(',')[1]; // Get base64 without data URL prefix
+                // Clear video element
+                const video = document.getElementById("video");
+                video.srcObject = null;
+
+                // Reset stream variable
+                stream = null;
+
+                // Update UI
+                document.getElementById("btnStartCamera").disabled = false;
+                document.getElementById("btnStopCamera").disabled = true;
+                document.getElementById("btnCapture").disabled = true;
+                document.getElementById("cameraStatus").innerHTML = '<span style="color: gray;">● Camera Stopped</span>';
+
+                // If WebRTC is connected, warn user
+                if (pc && pc.connectionState === 'connected') {
+                    alert("Warning: Camera stopped but WebRTC connection is still active. Video stream to server has ended.");
+                }
+            }
         }
 
-        // Enroll candidate
-        async function captureAndEnroll() {
-            const candidateId = document.getElementById('candidateId').value;
-            if (!candidateId) {
-                showStatus('enrollmentStatus', 'Please enter candidate ID', 'error');
+        function getFrameBase64() {
+            const video = document.getElementById("video");
+            if (!stream || !video.srcObject) {
+                alert("Camera is not active. Please start the camera first.");
+                return null;
+            }
+            const canvas = document.createElement("canvas");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext("2d").drawImage(video, 0, 0);
+            return canvas.toDataURL("image/jpeg").split(",")[1];
+        }
+
+        async function captureEnrollmentImages() {
+            const candidateId = document.getElementById("candidateId").value;
+            const statusDiv = document.getElementById("enrollmentStatus");
+
+            if (!stream) {
+                statusDiv.innerHTML = "<span style='color:red'>Please start the camera first!</span>";
                 return;
             }
 
-            if (!videoStream) {
-                const success = await initVideo();
-                if (!success) return;
-                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for video to start
-            }
+            statusDiv.innerText = "Capturing 3 images...";
 
-            showStatus('enrollmentStatus', 'Capturing images...', 'info');
-
-            // Capture 5 images
             const images = [];
-            for (let i = 0; i < 5; i++) {
-                const frameData = captureFrame();
-                images.push({
-                    image_base64: frameData,
-                    capture_timestamp: new Date().toISOString()
-                });
-                await new Promise(resolve => setTimeout(resolve, 500)); // Wait between captures
+            for (let i = 0; i < 3; i++) {
+                const frameData = getFrameBase64();
+                if (!frameData) {
+                    statusDiv.innerHTML = "<span style='color:red'>Failed to capture image!</span>";
+                    return;
+                }
+                images.push({ image_base64: frameData });
+                statusDiv.innerText = `Capturing image ${i + 1}/3...`;
+                await new Promise(r => setTimeout(r, 500)); // Delay between captures
             }
+
+            statusDiv.innerText = "Sending enrollment request...";
 
             try {
-                const response = await fetch(`${API_BASE}/api/v1/enroll`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                const res = await fetch(`${APP_URL}/api/v1/enroll`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         candidate_id: candidateId,
                         images: images
                     })
                 });
 
-                const data = await response.json();
-
-                if (response.ok) {
-                    showStatus('enrollmentStatus',
-                        `Enrollment successful! Quality: ${data.embeddings[0]?.quality_score?.toFixed(2) || 'N/A'}`,
-                        'success');
+                if (res.ok) {
+                    const data = await res.json();
+                    statusDiv.innerHTML = `<span style='color:green'>Enrollment Successful! ID: ${data.enrollment_id}</span>`;
                 } else {
-                    showStatus('enrollmentStatus', `Enrollment failed: ${data.detail}`, 'error');
+                    const err = await res.text();
+                    statusDiv.innerHTML = `<span style='color:red'>Error: ${err}</span>`;
                 }
-            } catch (error) {
-                showStatus('enrollmentStatus', 'Error: ' + error.message, 'error');
+            } catch (e) {
+                statusDiv.innerHTML = `<span style='color:red'>Network Error: ${e.message}</span>`;
             }
         }
 
-        // Check enrollment
-        async function checkEnrollment() {
-            const candidateId = document.getElementById('checkCandidateId').value;
-            if (!candidateId) {
-                showStatus('checkStatus', 'Please enter candidate ID', 'error');
-                return;
-            }
+        async function fetchEnrollmentDetails() {
+            const candidateId = document.getElementById("candidateId").value;
+            const detailsDiv = document.getElementById("enrollmentDetails");
 
             try {
-                const response = await fetch(`${API_BASE}/api/v1/enroll/${candidateId}`);
-                const data = await response.json();
+                const res = await fetch(`${APP_URL}/api/v1/enroll/${candidateId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    detailsDiv.style.display = 'block';
 
-                if (response.ok) {
-                    showStatus('checkStatus', 'Enrollment found!', 'success');
+                    let html = `
+                        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                            <div style="flex: 1;">
+                                <h4>Enrollment Summary</h4>
+                                <ul style="list-style: none; padding: 0;">
+                                    <li><b>Candidate ID:</b> ${data.candidate_id}</li>
+                                    <li><b>Enrollment ID:</b> ${data.enrollment_id}</li>
+                                    <li><b>Timestamp:</b> ${new Date(data.enrollment_timestamp).toLocaleString()}</li>
+                                    <li><b>Avg Embedding Stored:</b> ${data.average_embedding_stored ? 'Yes' : 'No'}</li>
+                                </ul>
+                            </div>
+                    `;
 
-                    document.getElementById('enrollmentDetails').style.display = 'block';
-                    document.getElementById('detailCandidateId').textContent = data.candidate_id;
-                    document.getElementById('detailEnrollmentId').textContent = data.enrollment_id;
-                    document.getElementById('detailTimestamp').textContent = new Date(data.enrollment_timestamp).toLocaleString();
-
-                    const embedding = data.embeddings[0];
-                    if (embedding) {
-                        document.getElementById('detailQuality').textContent = (embedding.quality_score * 100).toFixed(1) + '%';
-                        document.getElementById('detailSharpness').textContent = (embedding.sharpness_score || 0).toFixed(1);
-
-                        if (embedding.face_image) {
-                            document.getElementById('enrolledFaceImage').src = embedding.face_image;
-                        } else {
-                            document.getElementById('enrolledFaceImage').src = 'https://via.placeholder.com/150?text=No+Image';
-                        }
+                    if (data.embeddings && data.embeddings.length > 0) {
+                        const emb = data.embeddings[0]; // Usually returns 1 best
+                        html += `
+                            <div style="flex: 1; text-align: center;">
+                                <h4>Reference Face</h4>
+                                <img src="${emb.face_image}"
+                                     style="max-width: 150px; border: 2px solid #4caf50; border-radius: 8px;">
+                                <div style="margin-top: 5px; font-size: 0.85em;">
+                                    <div>Quality Score: <b>${emb.quality_score.toFixed(2)}</b></div>
+                                    <div>Sharpness: <b>${emb.sharpness_score.toFixed(2)}</b></div>
+                                </div>
+                            </div>
+                        `;
                     }
+                    html += `</div>`;
+
+                    detailsDiv.innerHTML = html;
                 } else {
-                    showStatus('checkStatus', `Error: ${data.detail}`, 'error');
-                    document.getElementById('enrollmentDetails').style.display = 'none';
+                    alert("Failed to fetch details: " + await res.text());
                 }
-            } catch (error) {
-                showStatus('checkStatus', 'Error: ' + error.message, 'error');
+            } catch (e) {
+                alert("Error: " + e.message);
             }
         }
 
-        // Start exam session
         async function startSession() {
-            const sessionId = document.getElementById('sessionId').value;
-            const candidateId = document.getElementById('sessionCandidateId').value;
+            const sessionId = document.getElementById("sessionId").value;
+            const candidateId = document.getElementById("candidateId").value;
+            const statusDiv = document.getElementById("sessionStatus");
 
-            if (!sessionId || !candidateId) {
-                showStatus('sessionStatus', 'Please enter session ID and candidate ID', 'error');
-                return;
-            }
+            statusDiv.innerText = "Starting session...";
 
             try {
-                const response = await fetch(`${API_BASE}/api/v1/session/start`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                const res = await fetch(`${APP_URL}/api/v1/session/start`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         exam_session_id: sessionId,
                         candidate_id: candidateId,
                         verification_policy: {
                             face_match_threshold: 0.75,
-                            alert_sensitivity: "high"
+                            alert_sensitivity: "medium"
                         }
                     })
                 });
 
-                const data = await response.json();
-
-                if (response.ok) {
-                    showStatus('sessionStatus', `Session started! WebSocket: ${data.websocket_url}`, 'success');
-                    connectAlertWebSocket(sessionId);
+                if (res.ok) {
+                    statusDiv.innerHTML = '<span style="color: green;">Session Active. Ready to connect WebRTC.</span>';
+                    document.getElementById("btnConnect").disabled = false;
                 } else {
-                    showStatus('sessionStatus', `Failed to start session: ${data.detail}`, 'error');
+                    statusDiv.innerHTML = '<span style="color: red;">Error starting session: ' + await res.text() + '</span>';
                 }
-            } catch (error) {
-                showStatus('sessionStatus', 'Error: ' + error.message, 'error');
+            } catch (e) {
+                statusDiv.innerHTML = '<span style="color: red;">Network Error: ' + e.message + '</span>';
             }
         }
 
-        // Connect to alert WebSocket
-        function connectAlertWebSocket(sessionId) {
-            const wsUrl = `${WS_BASE}/api/v1/session/ws/${sessionId}`;
-            alertWebSocket = new WebSocket(wsUrl);
+        async function connectWebRTC() {
+            const sessionId = document.getElementById("sessionId").value;
+            const candidateId = document.getElementById("candidateId").value;
 
-            alertWebSocket.onopen = () => {
-                document.getElementById('connectionStatus').textContent = 'Connected';
-                showStatus('streamStatus', 'Alert WebSocket connected', 'success');
-            };
-
-            alertWebSocket.onmessage = (event) => {
-                const message = JSON.parse(event.data);
-
-                if (message.type === 'alert') {
-                    alertCount++;
-                    document.getElementById('alertCount').textContent = alertCount;
-                    addAlert(message);
-                } else if (message.type === 'heartbeat') {
-                    // Update stats if needed
-                }
-            };
-
-            alertWebSocket.onerror = (error) => {
-                showStatus('streamStatus', 'WebSocket error', 'error');
-            };
-
-            alertWebSocket.onclose = () => {
-                document.getElementById('connectionStatus').textContent = 'Disconnected';
-            };
-        }
-
-        // Start video stream
-        async function startVideoStream() {
-            const sessionId = document.getElementById('sessionId').value;
-            const candidateId = document.getElementById('sessionCandidateId').value;
-
-            if (!sessionId || !candidateId) {
-                showStatus('streamStatus', 'Please start a session first', 'error');
+            if (!stream) {
+                alert("Please start the camera before connecting WebRTC!");
                 return;
             }
 
-            if (!videoStream) {
-                const success = await initVideo();
-                if (!success) return;
-            }
-
-            // Connect to frame WebSocket
-            const wsUrl = `${WS_BASE}/api/v1/webrtc/frames/${sessionId}`;
-            frameWebSocket = new WebSocket(wsUrl);
-
-            frameWebSocket.onopen = () => {
-                showStatus('streamStatus', 'Frame stream connected', 'success');
-                document.getElementById('startStreamBtn').disabled = true;
-                document.getElementById('stopStreamBtn').disabled = false;
-
-                // Start sending frames (30 FPS)
-                frameInterval = setInterval(() => {
-                    if (frameWebSocket.readyState === WebSocket.OPEN) {
-                        const frameData = captureFrame();
-                        frameCount++;
-                        document.getElementById('frameCount').textContent = frameCount;
-
-                        frameWebSocket.send(JSON.stringify({
-                            type: 'frame',
-                            candidate_id: candidateId,
-                            frame_data: frameData,
-                            timestamp: new Date().toISOString()
-                        }));
+            // Create PC
+            const config = {
+                iceServers: [
+                    { urls: "stun:stun.l.google.com:19302" },
+                    {
+                        urls: "turn:10.120.161.104:3478",
+                        username: "user",
+                        credential: "password"
                     }
-                }, 1000 / 30); // 30 FPS
+                ]
             };
+            pc = new RTCPeerConnection(config);
 
-            frameWebSocket.onmessage = (event) => {
-                const message = JSON.parse(event.data);
+            // Connection State Logging
+            pc.onconnectionstatechange = () => {
+                console.log("Connection State:", pc.connectionState);
+                document.getElementById('sessionStatus').innerText = `State: ${pc.connectionState}`;
+            };
+            pc.oniceconnectionstatechange = () => console.log("ICE State:", pc.iceConnectionState);
 
-                if (message.type === 'alert') {
-                    alertCount++;
-                    document.getElementById('alertCount').textContent = alertCount;
-                    addAlert(message);
-                } else if (message.type === 'error') {
-                    showStatus('streamStatus', 'Error: ' + message.message, 'error');
+            // Debug Stats
+            setInterval(async () => {
+                if (pc && pc.connectionState === 'connected') {
+                    const stats = await pc.getStats();
+                    stats.forEach(report => {
+                        if (report.type === 'outbound-rtp' && report.kind === 'video') {
+                            console.log(`Video Stats: BytesSent: ${report.bytesSent}, PacketsSent: ${report.packetsSent}`);
+                        }
+                    });
                 }
+            }, 2000);
+
+            // Add Transceiver (Send only)
+            stream.getTracks().forEach(track => pc.addTransceiver(track, { direction: 'sendonly' }));
+
+            // Create DataChannel (Client initiates)
+            dc = pc.createDataChannel("alerts");
+            setupDataChannel(dc);
+
+            // Create Offer
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+
+            // Send to Backend
+            try {
+                const response = await fetch(`${APP_URL}/api/v1/signaling/offer`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        sdp: pc.localDescription.sdp,
+                        type: pc.localDescription.type,
+                        exam_session_id: sessionId,
+                        candidate_id: candidateId
+                    })
+                });
+
+                if (!response.ok) {
+                    alert("Signaling failed: " + await response.text());
+                    return;
+                }
+
+                const answer = await response.json();
+                await pc.setRemoteDescription(answer);
+
+                document.getElementById("btnConnect").disabled = true;
+                document.getElementById("btnConnect").innerText = "Connected";
+                document.getElementById("btnConnect").style.background = "#4caf50";
+                document.getElementById("btnConnect").style.color = "white";
+                document.getElementById("btnDisconnect").disabled = false;
+            } catch (e) {
+                alert("WebRTC connection failed: " + e.message);
+            }
+        }
+
+        function disconnectWebRTC() {
+            // Close data channel
+            if (dc) {
+                dc.close();
+                dc = null;
+            }
+
+            // Close peer connection
+            if (pc) {
+                pc.close();
+                pc = null;
+            }
+
+            // Update UI
+            document.getElementById("btnConnect").disabled = false;
+            document.getElementById("btnConnect").innerText = "Connect WebRTC";
+            document.getElementById("btnConnect").style.background = "";
+            document.getElementById("btnConnect").style.color = "";
+            document.getElementById("btnDisconnect").disabled = true;
+
+            // Clear alerts
+            document.getElementById("alerts").innerHTML = "<i>Connection closed. Waiting for new connection...</i>";
+
+            document.getElementById("sessionStatus").innerHTML += '<br><span style="color: orange;">WebRTC Disconnected</span>';
+        }
+
+        function setupDataChannel(channel) {
+            channel.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                const el = document.getElementById("alerts");
+                const div = document.createElement("div");
+                div.style.borderBottom = "1px solid #eee";
+                div.style.padding = "5px";
+                div.innerText = `${new Date().toLocaleTimeString()} - ${data.message} (Score: ${data.severity_score})`;
+                if (data.severity_score > 0.8) div.style.color = "red";
+                else if (data.severity_score > 0.5) div.style.color = "orange";
+                el.prepend(div);
             };
-
-            frameWebSocket.onerror = (error) => {
-                showStatus('streamStatus', 'Frame WebSocket error', 'error');
+            channel.onopen = () => {
+                console.log("DataChannel Open");
+                const el = document.getElementById("alerts");
+                el.innerHTML = "<i style='color: green;'>DataChannel connected - Listening for alerts...</i>";
             };
-
-            frameWebSocket.onclose = () => {
-                showStatus('streamStatus', 'Frame stream disconnected', 'info');
-                document.getElementById('startStreamBtn').disabled = false;
-                document.getElementById('stopStreamBtn').disabled = true;
+            channel.onclose = () => {
+                console.log("DataChannel Closed");
             };
         }
 
-        // Stop video stream
-        function stopVideoStream() {
-            if (frameInterval) {
-                clearInterval(frameInterval);
-                frameInterval = null;
-            }
-
-            if (frameWebSocket) {
-                frameWebSocket.close();
-                frameWebSocket = null;
-            }
-
-            if (videoStream) {
-                videoStream.getTracks().forEach(track => track.stop());
-                videoStream = null;
-            }
-
-            document.getElementById('startStreamBtn').disabled = false;
-            document.getElementById('stopStreamBtn').disabled = true;
-            showStatus('streamStatus', 'Stream stopped', 'info');
-        }
-
-        // Add alert to UI
-        function addAlert(alert) {
-            const container = document.getElementById('alertsContainer');
-            const alertDiv = document.createElement('div');
-            alertDiv.className = `alert-item ${alert.severity_score > 0.8 ? 'critical' : 'high'}`;
-
-            alertDiv.innerHTML = `
-                <div class="alert-header">${alert.event_type}</div>
-                <div>Severity: ${(alert.severity_score * 100).toFixed(0)}%</div>
-                <div class="alert-time">${new Date(alert.timestamp).toLocaleTimeString()}</div>
-            `;
-
-            container.insertBefore(alertDiv, container.firstChild);
-
-            // Keep only last 10 alerts
-            while (container.children.length > 10) {
-                container.removeChild(container.lastChild);
-            }
-        }
-
-        // Show status message
-        function showStatus(elementId, message, type) {
-            const element = document.getElementById(elementId);
-            element.textContent = message;
-            element.className = `status ${type}`;
-
-            if (type === 'success' || type === 'error') {
-                setTimeout(() => {
-                    element.textContent = '';
-                    element.className = '';
-                }, 5000);
-            }
-        }
-
-        // Initialize on load
-        window.addEventListener('load', () => {
-            initVideo();
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            stopCamera();
+            disconnectWebRTC();
         });
     </script>
 </body>

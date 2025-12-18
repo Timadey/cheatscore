@@ -12,6 +12,7 @@ from app.config import settings
 from app.api.v1 import enrollment, verification, session, admin, webrtc
 from app.utils.redis_client import close_redis
 from app.dispatcher.alert_dispatcher import AlertDispatcher
+# Include routers
 
 # Configure logging
 logging.basicConfig(
@@ -87,7 +88,7 @@ app.add_middleware(
 app.include_router(enrollment.router, prefix="/api/v1/enroll", tags=["enrollment"])
 app.include_router(verification.router, prefix="/api/v1/verify", tags=["verification"])
 app.include_router(session.router, prefix="/api/v1/session", tags=["session"])
-app.include_router(webrtc.router, prefix="/api/v1/webrtc", tags=["webrtc"])
+app.include_router(webrtc.router, prefix="/api/v1/signaling", tags=["signaling"])
 app.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"])
 
 
