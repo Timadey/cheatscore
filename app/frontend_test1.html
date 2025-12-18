@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>AI Proctoring Test - Powered by @sdcams/proctor</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section.blue { background: #e3f2fd; }
+        .section.green { background: #e8f5e9; }
+        .section.gray { background: #f5f5f5; }
+        h2 { margin-top: 0; color: #1976d2; }
+        h3 { margin-top: 0; color: #424242; }
+        label {
+            display: inline-block;
+            margin-right: 15px;
+        }
+        input {
+            padding: 8px;
+            margin-left: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px 5px 5px 0;
+            border: none;
+            border-radius: 4px;
+            background: #1976d2;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        button:hover:not(:disabled) {
+            background: #1565c0;
+        }
+        button:disabled {
+            background: #bdbdbd;
+            cursor: not-allowed;
+        }
+        button.success {
+            background: #43a047;
+        }
+        button.success:hover:not(:disabled) {
+            background: #388e3c;
+        }
+        button.danger {
+            background: #e53935;
+        }
+        button.danger:hover:not(:disabled) {
+            background: #d32f2f;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .status.success {
+            background: #c8e6c9;
+            color: #2e7d32;
+            border-left: 4px solid #43a047;
+        }
+        .status.error {
+            background: #ffcdd2;
+            color: #c62828;
+            border-left: 4px solid #e53935;
+        }
+        .status.info {
+            background: #bbdefb;
+            color: #1565c0;
+            border-left: 4px solid #1976d2;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 450px 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        #video {
+            width: 100%;
+            background: black;
+            border-radius: 8px;
+        }
+        #cameraStatus {
+            margin-top: 10px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .alerts-container {
+            border: 1px solid #e0e0e0;
+            height: 350px;
+            overflow-y: auto;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+        }
+        .alert-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            border-left: 4px solid #1976d2;
+            background: #f5f5f5;
+        }
+        .alert-item.high {
+            border-left-color: #e53935;
+            background: #ffebee;
+        }
+        .alert-item.medium {
+            border-left-color: #ff9800;
+            background: #fff3e0;
+        }
+        .alert-item.low {
+            border-left-color: #43a047;
+            background: #e8f5e9;
+        }
+        .alert-meta {
+            font-size: 12px;
+            color: #757575;
+            margin-top: 4px;
+        }
+        #proctoringMonitorRoot {
+            margin-top: 20px;
+        }
+        .details-box {
+            margin-top: 10px;
+            padding: 15px;
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .details-box h4 {
+            margin-top: 0;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            background: #e3f2fd;
+            color: #1976d2;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2>🎓 AI Proctoring Test Handler <span class="badge">Powered by @sdcams/proctor</span></h2>
+
+        <!-- Configuration -->
+        <div class="section gray">
+            <h3>1. Configuration</h3>
+            <label>Candidate ID: <input type="text" id="candidateId" value="test-candidate-1"></label>
+            <label>Session ID: <input type="text" id="sessionId" value="test-session-1"></label>
+        </div>
+
+        <!-- Enrollment -->
+        <div class="section blue">
+            <h3>2. Face Enrollment</h3>
+            <p>Capture 3 images to enroll your face for backend verification.</p>
+            <button onclick="startCamera()" id="btnStartCamera">📷 Start Camera</button>
+            <button onclick="stopCamera()" id="btnStopCamera" class="danger" disabled>⏹️ Stop Camera</button>
+            <button onclick="captureEnrollmentImages()" id="btnCapture" class="success" disabled>📸 Capture & Enroll</button>
+            <button onclick="fetchEnrollmentDetails()">🔍 Fetch Details</button>
+            <div id="enrollmentStatus"></div>
+            <div id="enrollmentDetails" class="details-box" style="display: none;"></div>
+        </div>
+
+        <!-- Session -->
+        <div class="section green">
+            <h3>3. Exam Session</h3>
+            <button onclick="startSession()">🚀 Start Session</button>
+            <button onclick="connectWebRTC()" id="btnConnect" class="success" disabled>🔗 Connect WebRTC + AI Proctoring</button>
+            <button onclick="disconnectWebRTC()" id="btnDisconnect" class="danger" disabled>🔌 Disconnect</button>
+            <div id="sessionStatus"></div>
+        </div>
+
+        <!-- Live Monitor -->
+        <div class="section">
+            <h3>📹 Live Monitoring</h3>
+            <div class="grid">
+                <!-- Left: Video + AI Proctoring -->
+                <div>
+                    <h4>Camera Feed</h4>
+                    <video id="video" autoplay playsinline muted></video>
+                    <div id="cameraStatus">⚪ Camera Stopped</div>
+
+                    <!-- AI Proctoring Monitor (React component from @sdcams/proctor) -->
+                    <div id="proctoringMonitorRoot"></div>
+                </div>
+
+                <!-- Right: Alerts -->
+                <div>
+                    <h4>🔔 Backend Verification Alerts</h4>
+                    <div id="backendAlerts" class="alerts-container">
+                        <i>Waiting for connection...</i>
+                    </div>
+
+                    <h4 style="margin-top: 20px;">🤖 AI Proctoring Events</h4>
+                    <div id="aiEvents" class="alerts-container">
+                        <i>No AI violations detected</i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import the published package
+        import { ProctoringMonitor } from 'https://unpkg.com/@sdcams/proctor@latest/dist/index.esm.js';
+
+        const APP_URL = "{{APP_URL}}"; // Will be replaced by backend
+
+        // Global state
+        window.appState = {
+            pc: null,
+            dc: null,
+            backendDC: null,
+            stream: null,
+            proctoringMonitor: null,
+            aiEventsLog: []
+        };
+
+        // Start Camera
+        window.startCamera = async function() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+                    audio: false
+                });
+                window.appState.stream = stream;
+                document.getElementById("video").srcObject = stream;
+
+                // Update UI
+                document.getElementById("btnStartCamera").disabled = true;
+                document.getElementById("btnStopCamera").disabled = false;
+                document.getElementById("btnCapture").disabled = false;
+                document.getElementById("cameraStatus").innerHTML = '<span style="color: #43a047;">🟢 Camera Active</span>';
+            } catch (e) {
+                alert("Camera error: " + e.message);
+                document.getElementById("cameraStatus").innerHTML = '<span style="color: #e53935;">🔴 Camera Error</span>';
+            }
+        };
+
+        // Stop Camera
+        window.stopCamera = function() {
+            const stream = window.appState.stream;
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                document.getElementById("video").srcObject = null;
+                window.appState.stream = null;
+
+                // Update UI
+                document.getElementById("btnStartCamera").disabled = false;
+                document.getElementById("btnStopCamera").disabled = true;
+                document.getElementById("btnCapture").disabled = true;
+                document.getElementById("cameraStatus").innerHTML = '<span style="color: #757575;">⚪ Camera Stopped</span>';
+
+                if (window.appState.pc && window.appState.pc.connectionState === 'connected') {
+                    alert("Warning: Camera stopped but WebRTC is still active. Video stream ended.");
+                }
+            }
+        };
+
+        // Get Frame as Base64
+        function getFrameBase64() {
+            const video = document.getElementById("video");
+            const stream = window.appState.stream;
+            if (!stream || !video.srcObject) {
+                return null;
+            }
+            const canvas = document.createElement("canvas");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext("2d").drawImage(video, 0, 0);
+            return canvas.toDataURL("image/jpeg").split(",")[1];
+        }
+
+        // Capture Enrollment Images
+        window.captureEnrollmentImages = async function() {
+            const candidateId = document.getElementById("candidateId").value;
+            const statusDiv = document.getElementById("enrollmentStatus");
+
+            if (!window.appState.stream) {
+                statusDiv.innerHTML = '<div class="status error">Please start camera first!</div>';
+                return;
+            }
+
+            statusDiv.innerHTML = '<div class="status info">Capturing 3 images...</div>';
+
+            const images = [];
+            for (let i = 0; i < 3; i++) {
+                const frameData = getFrameBase64();
+                if (!frameData) {
+                    statusDiv.innerHTML = '<div class="status error">Failed to capture image!</div>';
+                    return;
+                }
+                images.push({ image_base64: frameData });
+                statusDiv.innerHTML = `<div class="status info">Capturing image ${i + 1}/3...</div>`;
+                await new Promise(r => setTimeout(r, 500));
+            }
+
+            statusDiv.innerHTML = '<div class="status info">Sending to server...</div>';
+
+            try {
+                const res = await fetch(`${APP_URL}/api/v1/enroll`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        candidate_id: candidateId,
+                        images: images
+                    })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    statusDiv.innerHTML = `<div class="status success">✅ Enrollment Successful! ID: ${data.enrollment_id}</div>`;
+                } else {
+                    const err = await res.text();
+                    statusDiv.innerHTML = `<div class="status error">❌ Error: ${err}</div>`;
+                }
+            } catch (e) {
+                statusDiv.innerHTML = `<div class="status error">❌ Network Error: ${e.message}</div>`;
+            }
+        };
+
+        // Fetch Enrollment Details
+        window.fetchEnrollmentDetails = async function() {
+            const candidateId = document.getElementById("candidateId").value;
+            const detailsDiv = document.getElementById("enrollmentDetails");
+
+            try {
+                const res = await fetch(`${APP_URL}/api/v1/enroll/${candidateId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    detailsDiv.style.display = 'block';
+
+                    let html = `
+                        <h4>Enrollment Details</h4>
+                        <p><strong>Candidate ID:</strong> ${data.candidate_id}</p>
+                        <p><strong>Enrollment ID:</strong> ${data.enrollment_id}</p>
+                        <p><strong>Timestamp:</strong> ${new Date(data.enrollment_timestamp).toLocaleString()}</p>
+                        <p><strong>Avg Embedding Stored:</strong> ${data.average_embedding_stored ? 'Yes' : 'No'}</p>
+                    `;
+
+                    if (data.embeddings && data.embeddings.length > 0) {
+                        const emb = data.embeddings[0];
+                        html += `
+                            <div style="margin-top: 15px; text-align: center;">
+                                <img src="${emb.face_image}" style="max-width: 150px; border: 2px solid #43a047; border-radius: 8px;">
+                                <p><strong>Quality:</strong> ${emb.quality_score.toFixed(2)} | <strong>Sharpness:</strong> ${emb.sharpness_score.toFixed(2)}</p>
+                            </div>
+                        `;
+                    }
+
+                    detailsDiv.innerHTML = html;
+                } else {
+                    alert("Failed to fetch: " + await res.text());
+                }
+            } catch (e) {
+                alert("Error: " + e.message);
+            }
+        };
+
+        // Start Session
+        window.startSession = async function() {
+            const sessionId = document.getElementById("sessionId").value;
+            const candidateId = document.getElementById("candidateId").value;
+            const statusDiv = document.getElementById("sessionStatus");
+
+            statusDiv.innerHTML = '<div class="status info">Starting session...</div>';
+
+            try {
+                const res = await fetch(`${APP_URL}/api/v1/session/start`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        exam_session_id: sessionId,
+                        candidate_id: candidateId,
+                        verification_policy: {
+                            face_match_threshold: 0.75,
+                            alert_sensitivity: "medium"
+                        }
+                    })
+                });
+
+                if (res.ok) {
+                    statusDiv.innerHTML = '<div class="status success">✅ Session active. Ready to connect WebRTC.</div>';
+                    document.getElementById("btnConnect").disabled = false;
+                } else {
+                    statusDiv.innerHTML = '<div class="status error">❌ Error: ' + await res.text() + '</div>';
+                }
+            } catch (e) {
+                statusDiv.innerHTML = '<div class="status error">❌ Network Error: ' + e.message + '</div>';
+            }
+        };
+
+        // Connect WebRTC with AI Proctoring
+        window.connectWebRTC = async function() {
+            const sessionId = document.getElementById("sessionId").value;
+            const candidateId = document.getElementById("candidateId").value;
+
+            if (!window.appState.stream) {
+                alert("Please start camera first!");
+                return;
+            }
+
+            // Create Peer Connection
+            const config = {
+                iceServers: [
+                    { urls: "stun:stun.l.google.com:19302" },
+                    { urls: "turn:10.120.161.104:3478", username: "user", credential: "password" }
+                ]
+            };
+            const pc = new RTCPeerConnection(config);
+            window.appState.pc = pc;
+
+            // Connection State
+            pc.onconnectionstatechange = () => {
+                console.log("Connection State:", pc.connectionState);
+                const statusDiv = document.getElementById("sessionStatus");
+                statusDiv.innerHTML = `<div class="status info">Connection: ${pc.connectionState}</div>`;
+            };
+
+            // Add Video Tracks (for backend face verification)
+            window.appState.stream.getTracks().forEach(track => {
+                pc.addTransceiver(track, { direction: 'sendonly' });
+            });
+
+            // ⭐ Create Data Channel for AI Proctoring Events
+            const aiDC = pc.createDataChannel("proctoring-events", {
+                ordered: false,
+                maxRetransmits: 0
+            });
+            window.appState.dc = aiDC;
+
+            aiDC.onopen = () => {
+                console.log("AI Proctoring DataChannel opened");
+                // ⭐ Initialize React ProctoringMonitor component
+                initializeProctoringMonitor(aiDC);
+            };
+
+            aiDC.onclose = () => {
+                console.log("AI Proctoring DataChannel closed");
+            };
+
+            // Create Data Channel for Backend Alerts
+            const backendDC = pc.createDataChannel("alerts");
+            window.appState.backendDC = backendDC;
+
+            backendDC.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                addBackendAlert(data);
+            };
+
+            backendDC.onopen = () => {
+                console.log("Backend Alerts DataChannel opened");
+                document.getElementById("backendAlerts").innerHTML = '<i style="color: #43a047;">✅ Connected - Listening for backend alerts...</i>';
+            };
+
+            // Create Offer
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+
+            // Send to Backend
+            try {
+                const response = await fetch(`${APP_URL}/api/v1/signaling/offer`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        sdp: pc.localDescription.sdp,
+                        type: pc.localDescription.type,
+                        exam_session_id: sessionId,
+                        candidate_id: candidateId
+                    })
+                });
+
+                if (!response.ok) {
+                    alert("Signaling failed: " + await response.text());
+                    return;
+                }
+
+                const answer = await response.json();
+                await pc.setRemoteDescription(answer);
+
+                // Update UI
+                document.getElementById("btnConnect").disabled = true;
+                document.getElementById("btnConnect").innerText = "✅ Connected";
+                document.getElementById("btnConnect").style.background = "#43a047";
+                document.getElementById("btnDisconnect").disabled = false;
+                document.getElementById("sessionStatus").innerHTML = '<div class="status success">✅ WebRTC Connected! AI Proctoring Active.</div>';
+            } catch (e) {
+                alert("WebRTC connection failed: " + e.message);
+            }
+        };
+
+        // Disconnect WebRTC
+        window.disconnectWebRTC = function() {
+            // Close data channels
+            if (window.appState.dc) {
+                window.appState.dc.close();
+                window.appState.dc = null;
+            }
+            if (window.appState.backendDC) {
+                window.appState.backendDC.close();
+                window.appState.backendDC = null;
+            }
+
+            // Close peer connection
+            if (window.appState.pc) {
+                window.appState.pc.close();
+                window.appState.pc = null;
+            }
+
+            // Unmount React component
+            const root = document.getElementById("proctoringMonitorRoot");
+            root.innerHTML = '';
+
+            // Update UI
+            document.getElementById("btnConnect").disabled = false;
+            document.getElementById("btnConnect").innerText = "🔗 Connect WebRTC + AI Proctoring";
+            document.getElementById("btnConnect").style.background = "#43a047";
+            document.getElementById("btnDisconnect").disabled = true;
+            document.getElementById("backendAlerts").innerHTML = "<i>Connection closed.</i>";
+            document.getElementById("sessionStatus").innerHTML = '<div class="status info">Disconnected</div>';
+        };
+
+        // Initialize React ProctoringMonitor Component
+        function initializeProctoringMonitor(dataChannel) {
+            const root = document.getElementById("proctoringMonitorRoot");
+
+            // Create React element
+            const element = React.createElement(ProctoringMonitor, {
+                dataChannel: dataChannel,
+                onEvent: handleAIProctoringEvent,
+                options: {
+                    detectionFPS: 5,
+                    stabilityFrames: 15,
+                    yawThreshold: 25,
+                    pitchThreshold: 20,
+                }
+            });
+
+            // Render
+            ReactDOM.render(element, root);
+        }
+
+        // Handle AI Proctoring Events
+        function handleAIProctoringEvent(event) {
+            console.log("AI Proctoring Event:", event);
+
+            // Add to log
+            window.appState.aiEventsLog.unshift({
+                id: Date.now(),
+                time: new Date(event.ts).toLocaleTimeString(),
+                type: event.event,
+                severity: event.lv,
+                metadata: event
+            });
+
+            // Keep last 50 events
+            if (window.appState.aiEventsLog.length > 50) {
+                window.appState.aiEventsLog.pop();
+            }
+
+            // Update UI
+            updateAIEventsDisplay();
+
+            // Show high-severity warnings
+            if (event.lv >= 8) {
+                const messages = {
+                    'GAZE_AWAY': '⚠️ Please keep your eyes on the screen',
+                    'MULTIPLE_FACES': '⚠️ Multiple people detected',
+                    'NO_FACE': '⚠️ Please remain visible to camera',
+                    'SUSPICIOUS_OBJECT': '⚠️ Unauthorized object detected',
+                    'TAB_SWITCHED': '⚠️ Tab switching not allowed',
+                    'WINDOW_FOCUS_LOST': '⚠️ Stay in exam window',
+                };
+                console.warn(messages[event.event] || event.event);
+            }
+        }
+
+        // Add Backend Alert
+        function addBackendAlert(data) {
+            const container = document.getElementById("backendAlerts");
+            const div = document.createElement("div");
+
+            const severityClass = data.severity_score > 0.8 ? 'high' :
+                                  data.severity_score > 0.5 ? 'medium' : 'low';
+
+            div.className = `alert-item ${severityClass}`;
+            div.innerHTML = `
+                <div><strong>${data.message}</strong></div>
+                <div class="alert-meta">${new Date().toLocaleTimeString()} • Severity: ${(data.severity_score * 100).toFixed(0)}%</div>
+            `;
+
+            container.insertBefore(div, container.firstChild);
+
+            // Keep only last 30 alerts
+            while (container.children.length > 30) {
+                container.removeChild(container.lastChild);
+            }
+        }
+
+        // Update AI Events Display
+        function updateAIEventsDisplay() {
+            const container = document.getElementById("aiEvents");
+            const events = window.appState.aiEventsLog;
+
+            if (events.length === 0) {
+                container.innerHTML = '<i>No AI violations detected</i>';
+                return;
+            }
+
+            container.innerHTML = events.map(event => {
+                const severityClass = event.severity >= 8 ? 'high' :
+                                      event.severity >= 5 ? 'medium' : 'low';
+
+                return `
+                    <div class="alert-item ${severityClass}">
+                        <div><strong>${event.type}</strong></div>
+                        <div class="alert-meta">${event.time} • Level: ${event.severity}/10</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            window.stopCamera();
+            window.disconnectWebRTC();
+        });
+    </script>
+</body>
+
+</html>

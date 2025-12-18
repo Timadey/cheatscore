@@ -8,6 +8,7 @@ import logging
 
 from app.inference.face_detection import face_detector_loaded
 from app.inference.face_verification import face_verifier_loaded
+# from app.inference.attention_analysis import AttentionAnalyzer, AttentionResult, GazeDirection
 from app.services.verification_service import VerificationService
 from app.schemas import AlertEvent, EventType, AlertEvidence
 from app.config import settings
@@ -37,7 +38,13 @@ class ContinuousVerifier:
                 "last_verification_time": None,
                 "multiple_faces_start_time": None,
                 "no_face_start_time": None,
-                "last_face_detection_time": None
+                "last_face_detection_time": None,
+                # Attention Tracking State
+                # "attention_analyzer": AttentionAnalyzer(),
+                "last_attention_check_time": None,
+                "gaze_off_screen_start_time": None,
+                "gaze_off_screen_direction": None,
+                "head_pose_violation_start_time": None
             }
         return self.session_state[exam_session_id]
 
@@ -159,18 +166,21 @@ class ContinuousVerifier:
         """
         try:
             # Extract embedding using InsightFace
-            current_embedding = self.face_verifier.extract_embedding_from_frame(
-                frame,
-                detection["bbox"],
-                detection.get("landmarks")
-            )
+            face = detection.get("face")
+            current_embedding = face.embedding
+
+            # current_embedding = self.face_verifier.extract_embedding_from_frame(
+            #     frame,
+            #     detection["bbox"],
+            #     detection.get("landmarks")
+            # )
 
             # Compute similarity
             similarity = self.face_verifier.compute_similarity(
                 current_embedding,
                 enrolled_embedding
             )
-
+            # print(f"🔥 SIMILARITY: {similarity} 🔥")
             # Check for mismatch
             if similarity < threshold:
                 state["consecutive_mismatches"] += 1
@@ -270,7 +280,8 @@ class ContinuousVerifier:
                 detection = detections[0]
                 threshold = threshold or settings.face_match_threshold
 
-                return self._handle_face_verification(
+                # 1. Identity Verification (InsightFace)
+                identity_alert = self._handle_face_verification(
                     exam_session_id,
                     candidate_id,
                     detection,
@@ -280,6 +291,20 @@ class ContinuousVerifier:
                     state,
                     timestamp
                 )
+                if identity_alert:
+                    return identity_alert
+                    
+                # 2. Attention Analysis (MediaPipe) - Throttled
+                # # Run pattern-based attention checks
+                # attention_alert = self._monitor_attention_patterns(
+                #     exam_session_id,
+                #     candidate_id,
+                #     frame,
+                #     state,
+                #     timestamp
+                # )
+                # if attention_alert:
+                #     return attention_alert
 
             return None
 
@@ -315,4 +340,80 @@ class ContinuousVerifier:
     def reset_session_state(self, exam_session_id: str):
         """Reset state for a session."""
         if exam_session_id in self.session_state:
+            state = self.session_state[exam_session_id]
+            # Close MediaPipe resources
+            if "attention_analyzer" in state:
+                state["attention_analyzer"].close()
             del self.session_state[exam_session_id]
+
+    # def _monitor_attention_patterns(
+    #     self,
+    #     exam_session_id: str,
+    #     candidate_id: str,
+    #     frame: np.ndarray,
+    #     state: Dict[str, Any],
+    #     timestamp: datetime
+    # ) -> Optional[AlertEvent]:
+    #     """
+    #     Run attention analysis and check for prohibited patterns.
+    #     """
+    #     # Throttle: Check frame rate for attention (e.g., 4 FPS)
+    #     last_check = state.get("last_attention_check_time")
+    #     if last_check:
+    #         delta = (timestamp - last_check).total_seconds()
+    #         if delta < (1.0 / settings.attention_check_fps):
+    #             return None
+    #
+    #     state["last_attention_check_time"] = timestamp
+    #     analyzer: AttentionAnalyzer = state["attention_analyzer"]
+    #
+    #     # Run inference
+    #     result = analyzer.process_frame(frame)
+    #     if not result:
+    #         return None
+    #
+    #     # --- Pattern Logic ---
+    #
+    #     # 1. Gaze Off-Screen Check
+    #     if not result.is_looking_at_screen:
+    #         # If this is the start of a deviation, record it
+    #         if state["gaze_off_screen_start_time"] is None:
+    #             state["gaze_off_screen_start_time"] = timestamp
+    #             state["gaze_off_screen_direction"] = result.gaze_direction.value
+    #             logger.debug(f"Gaze deviation started: {result.gaze_direction.value}")
+    #
+    #         # Check duration
+    #         duration = (timestamp - state["gaze_off_screen_start_time"]).total_seconds()
+    #
+    #         if duration >= settings.gaze_off_screen_threshold:
+    #             # PATTERN DETECTED: Sustained Gaze off-screen
+    #
+    #             # Reset timer to avoid spam (or create one alert per episode)
+    #             # We reset to current time to re-trigger if it persists for ANOTHER threshold duration
+    #             state["gaze_off_screen_start_time"] = timestamp
+    #
+    #             logger.info(f"Gaze alert emitted: {result.gaze_direction.value} for {duration:.1f}s")
+    #
+    #             return self._create_alert(
+    #                 exam_session_id=exam_session_id,
+    #                 candidate_id=candidate_id,
+    #                 event_type=EventType.GAZE_OFF_SCREEN,
+    #                 severity_score=0.75,
+    #                 evidence={
+    #                     "gaze_direction": result.gaze_direction.value,
+    #                     "duration_seconds": duration,
+    #                     "head_pose": result.head_pose,
+    #                     "gaze_vector": [float(result.gaze_direction == GazeDirection.LEFT), float(result.gaze_direction == GazeDirection.RIGHT), float(result.gaze_direction == GazeDirection.UP)] # Simplified vector
+    #                 },
+    #                 timestamp=timestamp
+    #             )
+    #     else:
+    #         # Reset if looking at screen
+    #         if state["gaze_off_screen_start_time"] is not None:
+    #             duration = (timestamp - state["gaze_off_screen_start_time"]).total_seconds()
+    #             if duration > 0.5:
+    #                  logger.debug(f"Gaze returned to screen after {duration:.1f}s")
+    #         state["gaze_off_screen_start_time"] = None
+    #         state["gaze_off_screen_direction"] = None
+    #
+    #     return None

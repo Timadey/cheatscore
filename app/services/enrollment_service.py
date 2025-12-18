@@ -114,7 +114,7 @@ class EnrollmentService:
                 
                 detection = detections[0]
 
-                print(detection)
+                # print(detection)
                 
                 # Calculate quality score
                 quality_metrics = self.face_detector.calculate_quality_score(
@@ -167,17 +167,17 @@ class EnrollmentService:
         best_embeddings = embeddings_data[:3]
         
         # Calculate average embedding
-        avg_embedding = np.mean(
-            [emb["embedding"] if isinstance(emb["embedding"], np.ndarray) else np.array(emb["embedding"]) 
-             for emb in best_embeddings],
-            axis=0
-        )
+        # avg_embedding = np.mean(
+        #     [emb["embedding"] if isinstance(emb["embedding"], np.ndarray) else np.array(emb["embedding"])
+        #      for emb in best_embeddings],
+        #     axis=0
+        # )
         
-        # Normalize average embedding
-        avg_embedding = avg_embedding / np.linalg.norm(avg_embedding)
-        
-        # Convert to vector format for storage
-        avg_embedding_vector = VectorDB.numpy_to_vector(avg_embedding)
+        # # Normalize average embedding
+        # avg_embedding = avg_embedding / np.linalg.norm(avg_embedding)
+        #
+        # # Convert to vector format for storage
+        # avg_embedding_vector = VectorDB.numpy_to_vector(avg_embedding)
         
         # Check if enrollment already exists for this candidate
         result = await db.execute(
@@ -190,7 +190,7 @@ class EnrollmentService:
         
         if existing_enrollment:
             # Update existing enrollment
-            existing_enrollment.embedding = avg_embedding_vector
+            existing_enrollment.embedding = best_embeddings[0]["embedding"]
             existing_enrollment.quality_score = best_embeddings[0]["quality_score"]
             existing_enrollment.sharpness_score = best_embeddings[0]["sharpness_score"]
             existing_enrollment.brightness_score = best_embeddings[0]["brightness_score"]
@@ -228,7 +228,7 @@ class EnrollmentService:
             enrollment = FaceEnrollment(
                 candidate_id=candidate_id,
                 embedding_id=embedding_id,
-                embedding=avg_embedding_vector,
+                embedding=best_embeddings[0]["embedding"],
                 embedding_dim=settings.embedding_dim,
                 quality_score=best_embeddings[0]["quality_score"],
                 sharpness_score=best_embeddings[0]["sharpness_score"],

@@ -41,8 +41,8 @@ class AlertDispatcher:
                     key_serializer=lambda k: k.encode('utf-8') if k else None,
                     acks='all',  # Wait for all replicas
                     retries=settings.kafka_max_retries,
-                    max_in_flight_requests_per_connection=1,
-                    enable_idempotence=True
+                    max_in_flight_requests_per_connection=1
+                    #enable_idempotence=True,
                 )
             )
             

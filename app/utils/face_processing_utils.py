@@ -108,10 +108,7 @@ class FaceProcessingUtils:
         # Cosine similarity (dot product of normalized vectors)
         similarity = np.dot(emb1_norm, emb2_norm)
 
-        # Clamp to [0, 1] range
-        similarity = max(0.0, min(1.0, float(similarity)))
-
-        return similarity
+        return float(similarity)
 
     @staticmethod
     def decode_base64_frame(frame_data: str) -> bytes:

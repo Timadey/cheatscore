@@ -33,6 +33,9 @@ onnxruntime==1.20.1
 # Note: Models need to be downloaded separately
 insightface==0.7.3  # Uncomment when models are available
 
+# Gaze & Pose Estimation
+mediapipe
+
 # Vector database (pgvector for PostgreSQL)
 pgvector==0.2.4  # PostgreSQL vector extension
 

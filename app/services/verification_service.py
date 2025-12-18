@@ -70,7 +70,8 @@ class VerificationService:
             raise NoEnrollmentError(f"No enrollment found for candidate {candidate_id}")
         
         # Convert vector to numpy array
-        enrolled_embedding = np.array(enrollment.embedding, dtype=np.float32)
+        enrolled_embedding = enrollment.embedding
+        # enrolled_embedding = np.array(enrollment.embedding, dtype=np.float32)
         # enrolled_embedding = VectorDB.vector_to_numpy(enrollment.embedding)
         
         # Detect face

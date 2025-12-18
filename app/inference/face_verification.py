@@ -191,11 +191,11 @@ class FaceVerifier(InsightFaceBase):
         self._verify_model_loaded()
 
         try:
-            # Convert BGR to RGB
-            frame_rgb = FaceProcessingUtils.convert_bgr_to_rgb(frame)
+            # Convert BGR to RGB - REMOVED (InsightFace expects BGR)
+            # frame_rgb = FaceProcessingUtils.convert_bgr_to_rgb(frame)
 
             # Get all faces with embeddings
-            faces = self.app.get(frame_rgb)
+            faces = self.app.get(frame)
 
             if not faces:
                 raise RuntimeError("No face detected in frame")
@@ -241,11 +241,11 @@ class FaceVerifier(InsightFaceBase):
         self._verify_model_loaded()
 
         try:
-            # Convert BGR to RGB
-            frame_rgb = FaceProcessingUtils.convert_bgr_to_rgb(frame)
+            # Convert BGR to RGB - REMOVED (InsightFace expects BGR)
+            # frame_rgb = FaceProcessingUtils.convert_bgr_to_rgb(frame)
 
             # Get faces with embeddings
-            faces = self.app.get(frame_rgb)
+            faces = self.app.get(frame)
 
             if not faces:
                 logger.info("No face detected in frame")
