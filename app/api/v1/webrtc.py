@@ -23,7 +23,7 @@ class OfferRequest(BaseModel):
     exam_session_id: str
     candidate_id: str
 
-@router.post("/offer")
+@router.post("/offer", response_model=SessionDescription)
 async def offer(request: OfferRequest):
     """
     Handle WebRTC SDP Offer.
