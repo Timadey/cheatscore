@@ -8,7 +8,7 @@ import logging
 
 from insightface.utils import face_align
 
-from app.inference.insightface_base import InsightFaceBase
+from app.inference.insightface.insightface_base import InsightFaceBase
 from app.utils.face_processing_utils import FaceProcessingUtils
 from app.config import settings
 
@@ -41,23 +41,8 @@ class FaceVerifier(InsightFaceBase):
 
     def _load_model(self):
         """Load the face verification model using global manager."""
-        try:
-            logger.info(f"Loading InsightFace recognition model from manager: {self.model_name}")
-
-            from app.inference.face_model_manager import FaceModelManager
-            self.app = FaceModelManager.get_instance().get_app()
-
-            # Verify embedding dimension with a dummy image
-            self._verify_embedding_dimension()
-
-            logger.info(
-                f"Face verification model loaded successfully from manager. "
-                f"Embedding dim: {self.embedding_dim}, Device: {self.device}"
-            )
-
-        except Exception as e:
-            logger.error(f"Failed to load face verification model: {e}")
-            raise
+        super()._load_model()
+        self._verify_embedding_dimension()
 
     def _verify_embedding_dimension(self):
         """Verify the embedding dimension of the loaded model."""
@@ -77,103 +62,10 @@ class FaceVerifier(InsightFaceBase):
         except Exception as e:
             logger.info(f"Could not verify embedding dimension: {e}")
 
-    def align_face(
-        self,
-        frame: np.ndarray,
-        landmarks: List[List[float]]
-    ) -> np.ndarray:
-        """
-        Align face using facial landmarks.
-
-        Args:
-            frame: Input image
-            landmarks: 5 facial landmarks [[x1,y1], [x2,y2], ...]
-
-        Returns:
-            Aligned face crop (112x112)
-        """
-        if len(landmarks) < 5:
-            logger.info("Insufficient landmarks, using simple crop and resize")
-            return FaceProcessingUtils.simple_face_crop_and_resize(
-                frame,
-                self.input_size
-            )
-
-        try:
-            # Convert landmarks to numpy array
-            landmarks_array = np.array(landmarks[:5], dtype=np.float32)
-
-            # Use InsightFace face_align utility
-            aligned_face = face_align.norm_crop(
-                frame,
-                landmarks_array,
-                image_size=112
-            )
-
-            return aligned_face
-
-        except Exception as e:
-            logger.warning(f"Face alignment failed: {e}, using simple resize")
-            return FaceProcessingUtils.simple_face_crop_and_resize(
-                frame,
-                self.input_size
-            )
-
-    def extract_embedding(self, face_crop: np.ndarray) -> np.ndarray:
-        """
-        Extract face embedding from aligned face crop.
-
-        DEPRECATED: This method has issues with pre-aligned crops.
-        Use extract_embedding_from_frame() instead.
-
-        Args:
-            face_crop: Aligned face image (112x112)
-
-        Returns:
-            L2-normalized embedding vector
-        """
-        logger.warning(
-            "extract_embedding() is deprecated due to detection issues with "
-            "aligned crops. Use extract_embedding_from_frame() instead."
-        )
-
-        self._verify_model_loaded()
-
-        try:
-            # Ensure correct size
-            if face_crop.shape[:2] != (112, 112):
-                face_crop = cv2.resize(face_crop, self.input_size)
-
-            # Convert BGR to RGB
-            face_rgb = FaceProcessingUtils.convert_bgr_to_rgb(face_crop)
-
-            # Get face embeddings using InsightFace
-            faces = self.app.get(face_rgb)
-
-            if not faces:
-                raise RuntimeError(
-                    "No face detected in the provided crop. "
-                    "Try using extract_embedding_from_frame() with full frame."
-                )
-
-            # Get embedding from the first face
-            embedding = faces[0].embedding
-
-            if embedding is None:
-                raise RuntimeError("Face embedding not available")
-
-            # Normalize embedding
-            return FaceProcessingUtils.normalize_embedding(embedding)
-
-        except Exception as e:
-            logger.error(f"Embedding extraction error: {e}", exc_info=True)
-            raise
-
     def extract_embedding_from_frame(
         self,
         frame: np.ndarray,
         bbox: List[int],
-        landmarks: Optional[List[List[float]]] = None
     ) -> np.ndarray:
         """
         Extract embedding from a frame given bounding box and landmarks.
@@ -183,7 +75,7 @@ class FaceVerifier(InsightFaceBase):
         Args:
             frame: Full frame image (BGR format)
             bbox: Bounding box [x1, y1, x2, y2] of the target face
-            landmarks: Optional facial landmarks (not used in this implementation)
+            # landmarks: Optional facial landmarks (not used in this implementation)
 
         Returns:
             Face embedding vector
@@ -204,7 +96,7 @@ class FaceVerifier(InsightFaceBase):
             if len(faces) == 1:
                 face = faces[0]
             else:
-                face = FaceProcessingUtils.find_matching_face(faces, bbox)
+                face = self.utils.find_matching_face(faces, bbox)
                 if face is None:
                     raise RuntimeError(
                         f"Could not match any detected face to target bbox. "

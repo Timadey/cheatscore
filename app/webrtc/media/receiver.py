@@ -8,8 +8,8 @@ from datetime import datetime
 from aiortc import MediaStreamTrack
 from av import VideoFrame
 
-from app.media.sampler import FrameSampler
-from app.processing.pipeline import ProcessingPipeline
+from app.webrtc.media.sampler import FrameSampler
+from app.webrtc.processing.pipeline import ProcessingPipeline
 
 logger = logging.getLogger(__name__)
 
@@ -19,14 +19,13 @@ class VideoReceiver:
     and pushes to the processing pipeline.
     """
     def __init__(self, track: MediaStreamTrack, session_id: str, candidate_id: str, 
-                 pipeline: ProcessingPipeline, pc, enrolled_embedding=None):
+                 pipeline: ProcessingPipeline, enrolled_embedding=None):
         self.track = track
         self.session_id = session_id
         self.candidate_id = candidate_id
         self.pipeline = pipeline
-        self.pc = pc # Added pc argument
         self.enrolled_embedding = enrolled_embedding
-        self.sampler = FrameSampler(target_fps=5.0) # Configurable
+        self.sampler = FrameSampler(target_fps=1.0) # Reduced for real-time CPU performance
         self._task = None
 
     def start(self):
@@ -48,7 +47,7 @@ class VideoReceiver:
                 try:
                     frame: VideoFrame = await asyncio.wait_for(self.track.recv(), timeout=2.0)
                 except asyncio.TimeoutError:
-                    logger.warning(f"No frames received for 2s. Connection state: {self.pc.connectionState}")
+                    # logger.warning(f"No frames received for 2s. Connection state: {self.pc.connectionState}")
                     continue
 
                 # Check sampler

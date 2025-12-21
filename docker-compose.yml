@@ -55,11 +55,13 @@ services:
     restart: unless-stopped
     volumes:
       - ./app:/app/app
-      - ./models:/app/.insightface
-    environment:
-      # Backend sees coturn via docker network alias
-      - WEBRTC_TURN_SERVERS=[{"urls":"turn:coturn:3478","username":"user","credential":"password"}]
-      - WEBRTC_STUN_SERVERS=stun:stun.l.google.com:19302
+      - insightface_models:/root/.insightface
+    env_file:
+      - .env
+#    environment:
+#      # Backend sees coturn via docker network alias
+#      - WEBRTC_TURN_SERVERS=[{"urls":"turn:coturn:3478","username":"user","credential":"password"}]
+#      - WEBRTC_STUN_SERVERS=stun:stun.l.google.com:19302
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   coturn:
@@ -79,12 +81,8 @@ services:
       - "--max-port=49200"
       - "--user=user:password"
       - "--realm=myrealm"
-      - "--external-ip=10.120.161.104"
+      - "--external-ip=10.24.17.104"
       - "--listening-port=3478"
 
-#
-# volumes:
-#   postgres_data:
-#   redis_data:
-#  kafka_data:
-#    driver: local
+volumes:
+  insightface_models:

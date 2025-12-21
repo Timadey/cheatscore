@@ -1,151 +1,139 @@
 """
 Continuous verification worker for real-time face verification during exam sessions.
 """
+import copy
 import numpy as np
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, AsyncGenerator
 from datetime import datetime
 import logging
+import os
+import cv2
 
-from app.inference.face_detection import face_detector_loaded
-from app.inference.face_verification import face_verifier_loaded
+from app.inference.insightface.face_detection import face_detector_loaded
+from app.inference.insightface.face_verification import face_verifier_loaded
 # from app.inference.attention_analysis import AttentionAnalyzer, AttentionResult, GazeDirection
-from app.services.verification_service import VerificationService
 from app.schemas import AlertEvent, EventType, AlertEvidence
 from app.config import settings
 
+
 logger = logging.getLogger(__name__)
+
+__INITIAL_SESSION_STATE__ = {
+    "frame_count": 0,
+    "verification_count": 0,
+    "consecutive_mismatches": 0,
+    # "multiple_faces_count": 0,
+    "multiple_faces_total_duration": 0.0,
+    "no_face_total_duration": 0.0,
+    "face_mismatch_total_duration": 0.0,
+    "face_mismatch_start_time": None,
+    # Face Verification State
+    "last_verification_time": None,
+    "multiple_faces_start_time": None,
+    "no_face_start_time": None,
+    "last_face_detection_time": None,
+    # Attention Tracking State
+    # "attention_analyzer": AttentionAnalyzer(),
+    "last_attention_check_time": None,
+    "gaze_off_screen_start_time": None,
+    "gaze_off_screen_direction": None,
+    "head_pose_violation_start_time": None
+}
 
 
 class ContinuousVerifier:
     """Continuous face verification during exam sessions."""
 
-    def __init__(self):
+    def __init__(self, exam_session_id: str, candidate_id: str):
         """Initialize continuous verifier."""
         self.face_detector = face_detector_loaded
         self.face_verifier = face_verifier_loaded
-        self.verification_service = VerificationService()
+        self.exam_session_id = exam_session_id
+        self.candidate_id = candidate_id
 
         # Track state per session
-        self.session_state: Dict[str, Dict[str, Any]] = {}
+        self.session_state = copy.deepcopy(__INITIAL_SESSION_STATE__)
 
-    def _get_session_state(self, exam_session_id: str) -> Dict[str, Any]:
+    def _get_session_state(self) -> Dict[str, Any]:
         """Get or create session state."""
-        if exam_session_id not in self.session_state:
-            self.session_state[exam_session_id] = {
-                "frame_count": 0,
-                "verification_count": 0,
-                "consecutive_mismatches": 0,
-                "last_verification_time": None,
-                "multiple_faces_start_time": None,
-                "no_face_start_time": None,
-                "last_face_detection_time": None,
-                # Attention Tracking State
-                # "attention_analyzer": AttentionAnalyzer(),
-                "last_attention_check_time": None,
-                "gaze_off_screen_start_time": None,
-                "gaze_off_screen_direction": None,
-                "head_pose_violation_start_time": None
-            }
-        return self.session_state[exam_session_id]
 
-    def _should_verify_frame(self, state: Dict[str, Any]) -> bool:
-        """
-        Determine if current frame should be verified.
-        
-        Args:
-            state: Session state dictionary
-            
-        Returns:
-            True if frame should be verified
-        """
-        # With decoupled processing, we verify every frame we actually process
-        # The logic for skipping frames is now handled by the GatewayAdapter consumer
-        return True
 
     def _handle_multiple_faces(
         self,
-        exam_session_id: str,
-        candidate_id: str,
         detections: list,
-        state: Dict[str, Any],
         timestamp: datetime
     ) -> Optional[AlertEvent]:
         """
         Handle multiple faces detection.
         """
         if len(detections) > 1:
-            if state["multiple_faces_start_time"] is None:
-                state["multiple_faces_start_time"] = timestamp
-            
-            duration = (timestamp - state["multiple_faces_start_time"]).total_seconds()
-            
-            if duration >= 3.0:  # 3 seconds
+            if self.session_state["multiple_faces_start_time"] is None:
+                self.session_state["multiple_faces_start_time"] = timestamp
+                return None
+
+            duration = (timestamp - self.session_state["multiple_faces_start_time"]).total_seconds()
+
+            if duration >= 2.0:  # 5 seconds
                 # Reset timer to avoid flooding alerts for the same event
-                # Or keep it set if we want to alert periodically? 
-                # For now, let's reset to send another alert after 3 more seconds
-                state["multiple_faces_start_time"] = timestamp
-                
+                # Or keep it set if we want to alert periodically?
+                # For now, let's reset to send another alert after 4 more seconds
+                self.session_state["multiple_faces_start_time"] = timestamp
+                # self.session_state["multiple_faces_count"] += 1
+                self.session_state["multiple_faces_total_duration"] += duration
+
                 return self._create_alert(
-                    exam_session_id=exam_session_id,
-                    candidate_id=candidate_id,
                     event_type=EventType.MULTIPLE_FACES,
                     severity_score=0.85,
                     evidence={
                         "face_count": len(detections),
-                        "duration_seconds": duration
+                        "duration_seconds": duration,
+                        "total_duration": self.session_state["multiple_faces_total_duration"]
                     },
                     timestamp=timestamp
                 )
         else:
-            state["multiple_faces_start_time"] = None
-            
+            self.session_state["multiple_faces_start_time"] = None
+
         return None
 
-    def _handle_no_face(
-        self,
-        exam_session_id: str,
-        candidate_id: str,
-        state: Dict[str, Any],
-        timestamp: datetime
-    ) -> Optional[AlertEvent]:
+    def _handle_no_face(self, timestamp: datetime) -> Optional[AlertEvent]:
         """
         Handle no face detection.
         """
-        if state["no_face_start_time"] is None:
-            state["no_face_start_time"] = timestamp
-            
-        duration = (timestamp - state["no_face_start_time"]).total_seconds()
-        state["last_face_detection_time"] = None
-        
+        if self.session_state["no_face_start_time"] is None:
+            # First frame with no face
+            self.session_state["no_face_start_time"] = timestamp
+            return None  # don’t alert yet
+
+        duration = (timestamp - self.session_state["no_face_start_time"]).total_seconds()
+        self.session_state["last_face_detection_time"] = None
+
         logger.debug(f"No face detected. Duration: {duration:.2f}s")
-        
-        if duration >= 5.0:  # 5 seconds
-            logger.info("No face detected for prolonged period")
-            # Reset timer to create periodic alerts if condition persists
-            state["no_face_start_time"] = timestamp
-            
+
+        threshold = 2.0  # or 5.0, whichever you choose
+        if duration >= threshold:
+            logger.info(f"No face detected for {duration:.2f}s")
+            self.session_state["no_face_total_duration"] += duration
+            # Reset start time so next alert triggers after another threshold period
+            self.session_state["no_face_start_time"] = timestamp
+
             return self._create_alert(
-                exam_session_id=exam_session_id,
-                candidate_id=candidate_id,
                 event_type=EventType.FACE_NOT_FOUND,
                 severity_score=0.90,
                 evidence={
-                    "duration_seconds": duration
+                    "duration_seconds": duration,
+                    "total_duration": self.session_state["no_face_total_duration"]
                 },
                 timestamp=timestamp
             )
-            
+
         return None
 
     def _handle_face_verification(
         self,
-        exam_session_id: str,
-        candidate_id: str,
         detection: Dict[str, Any],
-        frame: np.ndarray,
         enrolled_embedding: np.ndarray,
         threshold: float,
-        state: Dict[str, Any],
         timestamp: datetime
     ) -> Optional[AlertEvent]:
         """
@@ -169,44 +157,57 @@ class ContinuousVerifier:
             face = detection.get("face")
             current_embedding = face.embedding
 
-            # current_embedding = self.face_verifier.extract_embedding_from_frame(
-            #     frame,
-            #     detection["bbox"],
-            #     detection.get("landmarks")
-            # )
-
             # Compute similarity
-            similarity = self.face_verifier.compute_similarity(
-                current_embedding,
-                enrolled_embedding
-            )
+            similarity = self.face_verifier.compute_similarity(current_embedding, enrolled_embedding)
             # print(f"🔥 SIMILARITY: {similarity} 🔥")
             # Check for mismatch
             if similarity < threshold:
-                state["consecutive_mismatches"] += 1
+                logger.debug(f"Face mismatch detected (similarity: {similarity:.2f})")
+                if self.session_state["face_mismatch_start_time"] is None:
+                    # First mismatch frame
+                    self.session_state["face_mismatch_start_time"] = timestamp
+                    self.session_state["consecutive_mismatches"] = 1
+                    return None
 
-                if state["consecutive_mismatches"] >= 3:
+                duration = (
+                        timestamp - self.session_state["face_mismatch_start_time"]
+                ).total_seconds()
+
+                self.session_state["consecutive_mismatches"] += 1
+
+                logger.debug(
+                    f"Face mismatch. Duration: {duration:.2f}s | "
+                    f"Consecutive: {self.session_state['consecutive_mismatches']}"
+                )
+
+                if (
+                        self.session_state["consecutive_mismatches"] >= 3
+                        # and duration >= 5.0
+                ):
+                    self.session_state["face_mismatch_total_duration"] += duration
+
+                    # Reset to avoid alert spam
+                    self.session_state["face_mismatch_start_time"] = timestamp
+                    self.session_state["consecutive_mismatches"] = 0
+
                     return self._create_alert(
-                        exam_session_id=exam_session_id,
-                        candidate_id=candidate_id,
                         event_type=EventType.FACE_MISMATCH,
                         severity_score=0.95,
                         evidence={
                             "similarity_score": similarity,
                             "threshold": threshold,
-                            "consecutive_mismatches": state["consecutive_mismatches"],
-                            "confidence_metrics": {
-                                "face_sim": similarity
-                            }
+                            "duration_seconds": duration,
+                            "total_duration": self.session_state["face_mismatch_total_duration"],
                         },
-                        timestamp=timestamp
+                        timestamp=timestamp,
                     )
             else:
-                # Reset mismatch counter on successful match
-                state["consecutive_mismatches"] = 0
+                # Successful match resets everything
+                self.session_state["consecutive_mismatches"] = 0
+                self.session_state["face_mismatch_start_time"] = None
 
-            state["verification_count"] += 1
-            state["last_verification_time"] = timestamp
+            self.session_state["verification_count"] += 1
+            self.session_state["last_verification_time"] = timestamp
 
         except Exception as e:
             logger.warning(f"Failed to extract embedding or compute similarity: {e}")
@@ -216,19 +217,17 @@ class ContinuousVerifier:
 
     async def verify_frame_continuous(
         self,
-        exam_session_id: str,
-        candidate_id: str,
         frame: np.ndarray,
         timestamp: datetime,
         enrolled_embedding: np.ndarray,
         threshold: Optional[float] = None
-    ) -> Optional[AlertEvent]:
+    ) -> AsyncGenerator[AlertEvent | None, Any]:
         """
         Verify frame and return alert if anomaly detected.
 
         Args:
-            exam_session_id: Exam session identifier
-            candidate_id: Candidate identifier
+            # exam_session_id: Exam session identifier
+            # candidate_id: Candidate identifier
             frame: Frame image (BGR format)
             timestamp: Frame timestamp
             enrolled_embedding: Enrolled face embedding
@@ -237,14 +236,16 @@ class ContinuousVerifier:
         Returns:
             AlertEvent if anomaly detected, None otherwise
         """
-        state = self._get_session_state(exam_session_id)
-        state["frame_count"] += 1
+        self.session_state["frame_count"] += 1
 
-        # Check if we should verify this frame
-        if not self._should_verify_frame(state):
-            return None
+        logger.debug(f"Continuous verification on frame: {self.session_state.get('frame_count')}")
 
-        logger.debug(f"Continuous verification on frame: {state['frame_count']}")
+        # Save frame for debugging
+        debug_dir = "debug_frames"
+        os.makedirs(debug_dir, exist_ok=True)
+        filename = os.path.join(debug_dir, f"{self.exam_session_id}_one_face_{timestamp.strftime('%H%M%S_%f')}.jpg")
+        cv2.imwrite(filename, frame)
+        logger.debug(f"Saved one-face frame to {filename}")
 
         try:
             # Detect faces using InsightFace
@@ -252,47 +253,47 @@ class ContinuousVerifier:
             logger.debug(f"Detected {len(detections)} faces")
 
             # Check for multiple faces
-            alert = self._handle_multiple_faces(
-                exam_session_id,
-                candidate_id,
-                detections,
-                state,
-                timestamp
-            )
+            alert = self._handle_multiple_faces(detections, timestamp)
             if alert:
-                return alert
+                yield alert
 
             # Check for no face
             if len(detections) == 0:
                 logger.debug("No face detected")
-                return self._handle_no_face(
-                    exam_session_id,
-                    candidate_id,
-                    state,
-                    timestamp
-                )
+                
+                # Save frame for debugging
+                # debug_dir = "debug_frames"
+                # os.makedirs(debug_dir, exist_ok=True)
+                # filename = os.path.join(debug_dir, f"{self.exam_session_id}_no_face_{timestamp.strftime('%H%M%S_%f')}.jpg")
+                # cv2.imwrite(filename, frame)
+                # logger.debug(f"Saved no-face frame to {filename}")
+
+                yield self._handle_no_face(timestamp)
             else:
-                state["no_face_start_time"] = None
-                state["last_face_detection_time"] = timestamp
+                self.session_state["no_face_start_time"] = None
+                self.session_state["last_face_detection_time"] = timestamp
 
             # Verify face if exactly one detected
             if len(detections) == 1:
                 detection = detections[0]
                 threshold = threshold or settings.face_match_threshold
 
+                # Save frame for debugging
+                # debug_dir = "debug_frames"
+                # os.makedirs(debug_dir, exist_ok=True)
+                # filename = os.path.join(debug_dir, f"{self.exam_session_id}_one_face_{timestamp.strftime('%H%M%S_%f')}.jpg")
+                # cv2.imwrite(filename, frame)
+                # logger.debug(f"Saved one-face frame to {filename}")
+
                 # 1. Identity Verification (InsightFace)
                 identity_alert = self._handle_face_verification(
-                    exam_session_id,
-                    candidate_id,
                     detection,
-                    frame,
                     enrolled_embedding,
                     threshold,
-                    state,
                     timestamp
                 )
                 if identity_alert:
-                    return identity_alert
+                    yield identity_alert
                     
                 # 2. Attention Analysis (MediaPipe) - Throttled
                 # # Run pattern-based attention checks
@@ -306,16 +307,15 @@ class ContinuousVerifier:
                 # if attention_alert:
                 #     return attention_alert
 
-            return None
+            return
 
         except Exception as e:
             logger.error(f"Error in continuous verification: {e}", exc_info=True)
-            return None
+            return
 
     def _create_alert(
         self,
-        exam_session_id: str,
-        candidate_id: str,
+
         event_type: EventType,
         severity_score: float,
         evidence: Dict[str, Any],
@@ -323,8 +323,8 @@ class ContinuousVerifier:
     ) -> AlertEvent:
         """Create an alert event."""
         return AlertEvent(
-            exam_session_id=exam_session_id,
-            candidate_id=candidate_id,
+            exam_session_id=self.exam_session_id,
+            candidate_id=self.candidate_id,
             timestamp=timestamp,
             event_type=event_type,
             severity_score=severity_score,
@@ -332,19 +332,18 @@ class ContinuousVerifier:
             evidence=AlertEvidence(**evidence),
             metadata={
                 "verification_count": self.session_state.get(
-                    exam_session_id, {}
+                    self.exam_session_id, {}
                 ).get("verification_count", 0)
             }
         )
 
     def reset_session_state(self, exam_session_id: str):
         """Reset state for a session."""
-        if exam_session_id in self.session_state:
-            state = self.session_state[exam_session_id]
+        if self.session_state:
             # Close MediaPipe resources
-            if "attention_analyzer" in state:
-                state["attention_analyzer"].close()
-            del self.session_state[exam_session_id]
+            if "attention_analyzer" in self.session_state:
+                self.session_state["attention_analyzer"].close()
+            self.session_state = {}
 
     # def _monitor_attention_patterns(
     #     self,
@@ -364,8 +363,8 @@ class ContinuousVerifier:
     #         if delta < (1.0 / settings.attention_check_fps):
     #             return None
     #
-    #     state["last_attention_check_time"] = timestamp
-    #     analyzer: AttentionAnalyzer = state["attention_analyzer"]
+    #     self.session_state["last_attention_check_time"] = timestamp
+    #     analyzer: AttentionAnalyzer = self.session_state["attention_analyzer"]
     #
     #     # Run inference
     #     result = analyzer.process_frame(frame)
@@ -377,20 +376,20 @@ class ContinuousVerifier:
     #     # 1. Gaze Off-Screen Check
     #     if not result.is_looking_at_screen:
     #         # If this is the start of a deviation, record it
-    #         if state["gaze_off_screen_start_time"] is None:
-    #             state["gaze_off_screen_start_time"] = timestamp
-    #             state["gaze_off_screen_direction"] = result.gaze_direction.value
+    #         if self.session_state["gaze_off_screen_start_time"] is None:
+    #             self.session_state["gaze_off_screen_start_time"] = timestamp
+    #             self.session_state["gaze_off_screen_direction"] = result.gaze_direction.value
     #             logger.debug(f"Gaze deviation started: {result.gaze_direction.value}")
     #
     #         # Check duration
-    #         duration = (timestamp - state["gaze_off_screen_start_time"]).total_seconds()
+    #         duration = (timestamp - self.session_state["gaze_off_screen_start_time"]).total_seconds()
     #
     #         if duration >= settings.gaze_off_screen_threshold:
     #             # PATTERN DETECTED: Sustained Gaze off-screen
     #
     #             # Reset timer to avoid spam (or create one alert per episode)
     #             # We reset to current time to re-trigger if it persists for ANOTHER threshold duration
-    #             state["gaze_off_screen_start_time"] = timestamp
+    #             self.session_state["gaze_off_screen_start_time"] = timestamp
     #
     #             logger.info(f"Gaze alert emitted: {result.gaze_direction.value} for {duration:.1f}s")
     #
@@ -409,11 +408,11 @@ class ContinuousVerifier:
     #             )
     #     else:
     #         # Reset if looking at screen
-    #         if state["gaze_off_screen_start_time"] is not None:
-    #             duration = (timestamp - state["gaze_off_screen_start_time"]).total_seconds()
+    #         if self.session_state["gaze_off_screen_start_time"] is not None:
+    #             duration = (timestamp - self.session_state["gaze_off_screen_start_time"]).total_seconds()
     #             if duration > 0.5:
     #                  logger.debug(f"Gaze returned to screen after {duration:.1f}s")
-    #         state["gaze_off_screen_start_time"] = None
-    #         state["gaze_off_screen_direction"] = None
+    #         self.session_state["gaze_off_screen_start_time"] = None
+    #         self.session_state["gaze_off_screen_direction"] = None
     #
     #     return None

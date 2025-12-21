@@ -3,9 +3,10 @@ Media session state.
 """
 from typing import Optional
 from aiortc import RTCPeerConnection, RTCSessionDescription
-from app.media.receiver import VideoReceiver
-from app.processing.pipeline import ProcessingPipeline
-from app.alerts.dispatcher import DataChannelAlertDispatcher
+from app.webrtc.media.receiver import VideoReceiver
+from app.webrtc.processing.continuous_verifier import ContinuousVerifier
+from app.webrtc.processing.pipeline import ProcessingPipeline
+from app.alerts.datachannel_dispatcher import DataChannelAlertDispatcher
 
 class MediaSession:
     """
@@ -27,7 +28,8 @@ class MediaSession:
         # The pipeline itself just runs an asyncio loop.
         # We can have one pipeline per session.
         self.alert_dispatcher_impl = DataChannelAlertDispatcher(self) # Takes manager-like interface
-        self.pipeline = ProcessingPipeline(self.alert_dispatcher_impl)
+        self.verifier = ContinuousVerifier(exam_session_id, candidate_id)
+        self.pipeline = ProcessingPipeline(self.alert_dispatcher_impl, self.verifier)
         
         self.receiver: Optional[VideoReceiver] = None
         self.data_channel = None

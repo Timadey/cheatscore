@@ -66,14 +66,15 @@ class FaceModelManager:
                 self.app = FaceAnalysis(
                     name=self.model_name,
                     root=root_path,
-                    providers=self._get_execution_providers()
+                    providers=self._get_execution_providers(),
+                    # allowed_modules=['det', 'rec'] # Only load detection and recognition
                 )
 
                 # Prepare the model with detection threshold
                 self.app.prepare(
                     ctx_id=self._get_ctx_id(),
                     det_thresh=settings.face_detection_confidence,
-                    det_size=(640, 640)  # Standard detection size
+                    det_size=(settings.face_detection_size, settings.face_detection_size)
                 )
 
                 self.is_initialized = True

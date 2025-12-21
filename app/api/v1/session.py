@@ -1,6 +1,8 @@
 """
 Session management API endpoints.
 """
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
@@ -43,10 +45,6 @@ class ConnectionManager:
                 del self.active_connections[session_id]
         logger.info(f"WebSocket disconnected for session {session_id}")
 
-    async def send_personal_message(self, message: str, websocket: WebSocket):
-        """Send message to a specific connection."""
-        await websocket.send_text(message)
-
     async def broadcast_to_session(self, session_id: str, message: str):
         """Broadcast message to all connections for a session."""
         if session_id in self.active_connections:
@@ -61,6 +59,38 @@ class ConnectionManager:
             # Remove disconnected connections
             for conn in disconnected:
                 self.active_connections[session_id].discard(conn)
+
+    @staticmethod
+    async def send_personal_message(message: str, websocket: WebSocket):
+        """Send message to a specific connection."""
+        await websocket.send_text(message)
+
+    @staticmethod
+    async def receive_loop(websocket: WebSocket, session_id: str):
+        while True:
+            data = await websocket.receive_json()
+            # Check if session is still active
+            session_service = SessionService()
+            session = await session_service.get_session(session_id)
+
+            if not session or session.get("status") != "active":
+                await websocket.send_json({
+                    "type": "session_ended",
+                    "session_id": session_id,
+                    "timestamp": datetime.utcnow().isoformat()
+                })
+                break
+            print("Received:", data)
+
+    @staticmethod
+    async def heartbeat_loop(websocket: WebSocket, session_id: str):
+        while True:
+            await asyncio.sleep(10)
+            await websocket.send_json({
+                "type": "heartbeat",
+                "session_id": session_id,
+                "timestamp": datetime.utcnow().isoformat()
+            })
 
 manager = ConnectionManager()
 
@@ -213,73 +243,45 @@ async def websocket_alerts(websocket: WebSocket, session_id: str):
     await manager.connect(websocket, session_id)
 
     try:
-        # Send initial connection message
+        await asyncio.gather(
+            manager.receive_loop(websocket, session_id),
+            manager.heartbeat_loop(websocket, session_id),
+        )
+
         await websocket.send_json({
             "type": "connected",
             "session_id": session_id,
             "timestamp": datetime.utcnow().isoformat()
         })
 
-        # Send heartbeat every 10 seconds
-        import asyncio
-        while True:
-            await asyncio.sleep(10)
-
-            # Check if session is still active
-            session_service = SessionService()
-            session = await session_service.get_session(session_id)
-
-            if not session or session.get("status") != "active":
-                await websocket.send_json({
-                    "type": "session_ended",
-                    "session_id": session_id,
-                    "timestamp": datetime.utcnow().isoformat()
-                })
-                break
-
-            # Send heartbeat
-            await websocket.send_json({
-                "type": "heartbeat",
-                "session_id": session_id,
-                "status": "active",
-                "stats": {
-                    "frame_count": session.get("frame_count", 0),
-                    "verification_count": session.get("verification_count", 0),
-                    "last_verification": session.get("last_verification")
-                },
-                "timestamp": datetime.utcnow().isoformat()
-            })
-
     except WebSocketDisconnect:
         manager.disconnect(websocket, session_id)
     except Exception as e:
         logger.error(f"WebSocket error: {e}", exc_info=True)
-        manager.disconnect(websocket, session_id)
-
-
-async def send_alert_to_frontend(session_id: str, alert: AlertEvent):
-    """
-    Broadcast alert to frontend via WebSocket.
-
-    Args:
-        session_id: Exam session identifier
-        alert: Alert event to send
-    """
-    try:
-        ws_message = WSAlertMessage(
-            event_id=alert.event_id,
-            exam_session_id=alert.exam_session_id,
-            event_type=alert.event_type,
-            severity_score=alert.severity_score,
-            timestamp=alert.timestamp,
-            message=f"Alert: {alert.event_type.value}",
-            action_required="warning" if alert.severity_score < 0.8 else "escalate",
-            evidence_thumbnail=None  # Can be added if needed
-        )
-
-        message_json = ws_message.model_dump_json()
-        await manager.broadcast_to_session(session_id, message_json)
-
-    except Exception as e:
-        logger.error(f"Error sending alert to frontend: {e}", exc_info=True)
-
+#
+# async def send_alert_to_frontend(session_id: str, alert: AlertEvent):
+#     """
+#     Broadcast alert to frontend via WebSocket.
+#
+#     Args:
+#         session_id: Exam session identifier
+#         alert: Alert event to send
+#     """
+#     try:
+#         ws_message = WSAlertMessage(
+#             event_id=alert.event_id,
+#             exam_session_id=alert.exam_session_id,
+#             event_type=alert.event_type,
+#             severity_score=alert.severity_score,
+#             timestamp=alert.timestamp,
+#             message=f"Alert: {alert.event_type.value}",
+#             action_required="warning" if alert.severity_score < 0.8 else "escalate",
+#             evidence_thumbnail=None  # Can be added if needed
+#         )
+#
+#         message_json = ws_message.model_dump_json()
+#         await manager.broadcast_to_session(session_id, message_json)
+#
+#     except Exception as e:
+#         logger.error(f"Error sending alert to frontend: {e}", exc_info=True)
+#

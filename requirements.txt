@@ -18,6 +18,7 @@ hiredis==2.2.3
 kafka-python==2.0.2
 
 # WebRTC & Media
+aiortc
 websockets==12.0
 av==12.0.0  # Updated from 9.2.0 - fixes Cython compilation errors
 
@@ -55,3 +56,5 @@ httpx==0.25.2
 python-multipart==0.0.6
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+
+livekit-api
