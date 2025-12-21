@@ -3,7 +3,7 @@ Verification service for face verification.
 """
 import numpy as np
 import cv2
-from typing import Tuple, Optional, Dict, Any
+from typing import Optional
 from datetime import datetime
 import logging
 
@@ -12,10 +12,9 @@ from sqlalchemy import select
 
 from app.models import FaceEnrollment
 from app.schemas import VerificationResponse, FaceQuality
-from app.inference.face_detection import face_detector_loaded
-from app.inference.face_verification import face_verifier_loaded
+from app.inference.insightface.face_detection import face_detector_loaded
+from app.inference.insightface.face_verification import face_verifier_loaded
 from app.utils.image_utils import decode_base64_image
-from app.utils.vector_db import VectorDB
 from app.exceptions import NoEnrollmentError
 from app.config import settings
 

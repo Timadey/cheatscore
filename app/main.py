@@ -11,7 +11,7 @@ from pathlib import Path
 from app.config import settings
 from app.api.v1 import enrollment, verification, session, admin, webrtc
 from app.utils.redis_client import close_redis
-from app.dispatcher.alert_dispatcher import AlertDispatcher
+# from app.alerts.datachannel_dispatcher import AlertDispatcher
 # Include routers
 
 # Configure logging
@@ -50,13 +50,13 @@ async def lifespan(app: FastAPI):
 
     
     # Initialize alert dispatcher
-    alert_dispatcher = AlertDispatcher()
-    try:
-        await alert_dispatcher.initialize()
-        app.state.alert_dispatcher = alert_dispatcher
-        logger.info("Alert dispatcher initialized")
-    except Exception as e:
-        logger.warning(f"Alert dispatcher initialization failed: {e}")
+    # alert_dispatcher = AlertDispatcher()
+    # try:
+    #     await alert_dispatcher.initialize()
+    #     app.state.alert_dispatcher = alert_dispatcher
+    #     logger.info("Alert dispatcher initialized")
+    # except Exception as e:
+    #     logger.warning(f"Alert dispatcher initialization failed: {e}")
     
     yield
     

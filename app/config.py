@@ -42,6 +42,7 @@ class Settings(BaseSettings):
 
     face_match_threshold: float = 0.75
     face_detection_confidence: float = 0.5
+    face_detection_size: int = 320 # Reduced from 640 for speed
 
     # Face Detection
     face_detection_model: str = "buffalo_sc"
@@ -106,6 +107,9 @@ class Settings(BaseSettings):
     prometheus_port: int = 9090
     jaeger_enabled: bool = False
     jaeger_endpoint: str = ""
+    livekit_api_key: str = ""
+    livekit_api_secret: str = ""
+    livekit_url: str = ""
 
     # =========================
     # Data Retention

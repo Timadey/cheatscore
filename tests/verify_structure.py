@@ -17,10 +17,10 @@ sys.modules['app.config'] = MagicMock()
 async def verify():
     print("Verifying imports...")
     try:
-        from app.signaling.webrtc import WebRTCManager
-        from app.media.sampler import FrameSampler
-        from app.processing.pipeline import ProcessingPipeline
-        from app.media.receiver import VideoReceiver
+        from app.webrtc.signaling.webrtc import WebRTCManager
+        from app.webrtc.media.sampler import FrameSampler
+        from app.webrtc.processing.pipeline import ProcessingPipeline
+        from app.webrtc.media.receiver import VideoReceiver
         print("Imports successful.")
     except Exception as e:
         print(f"Import failed: {e}")

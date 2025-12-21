@@ -10,8 +10,8 @@ from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, R
 from sqlalchemy import select
 
 from app.config import settings
-from app.media.session import MediaSession
-from app.media.receiver import VideoReceiver
+from app.webrtc.media.session import MediaSession
+from app.webrtc.media.receiver import VideoReceiver
 from app.models import FaceEnrollment
 from app.services.session_service import SessionService
 from app.utils.db import AsyncSessionLocal
@@ -25,8 +25,9 @@ class WebRTCManager:
     _instance = None
     
     def __init__(self):
+        # TODO: can we use Redis here? Instead of in memory sessions of MediaSession?
         self.sessions: Dict[str, MediaSession] = {}
-        self.session_service = SessionService()
+        # self.session_service = SessionService()
 
     @classmethod
     def get_instance(cls):
@@ -63,7 +64,7 @@ class WebRTCManager:
 
         config = RTCConfiguration(iceServers=ice_servers_config)
         pc = RTCPeerConnection(configuration=config)
-        
+
         # 3. Create Session Object
         session = MediaSession(exam_session_id, candidate_id, pc, enrolled_embedding)
         self.sessions[exam_session_id] = session
@@ -83,7 +84,6 @@ class WebRTCManager:
                     track=track,
                     session_id=exam_session_id,
                     candidate_id=candidate_id,
-                    pc=pc,
                     pipeline=session.pipeline,
                     enrolled_embedding=enrolled_embedding
                 )

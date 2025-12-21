@@ -4,14 +4,11 @@ Consumes sampled frames and runs detection/verification models.
 """
 import asyncio
 import logging
-import time
 from typing import Optional
-from concurrent.futures import ThreadPoolExecutor
 
 from app.inference.face_model_manager import FaceModelManager
-from app.inference.continuous_verifier import ContinuousVerifier
-from app.alerts.dispatcher import DataChannelAlertDispatcher
-from app.schemas import AlertEvent
+from app.webrtc.processing.continuous_verifier import ContinuousVerifier
+from app.alerts.datachannel_dispatcher import DataChannelAlertDispatcher
 
 logger = logging.getLogger(__name__)
 
@@ -19,11 +16,11 @@ class ProcessingPipeline:
     """
     Consumer pipeline that processes frames from the queue.
     """
-    def __init__(self, alert_dispatcher: DataChannelAlertDispatcher):
-        self.queue = asyncio.Queue()
+    def __init__(self, alert_dispatcher: DataChannelAlertDispatcher, verifier: ContinuousVerifier):
+        self.queue = asyncio.Queue(maxsize=1)
         self.running = False
         self.alert_dispatcher = alert_dispatcher
-        self.verifier = ContinuousVerifier()
+        self.verifier = verifier
         # Initialize model manager (ensure it's loaded)
         self.model_manager = FaceModelManager.get_instance()
         self._worker_task: Optional[asyncio.Task] = None
@@ -66,10 +63,17 @@ class ProcessingPipeline:
             return
             
         try:
-            # Non-blocking put; drop frame if queue is full
+            # Non-blocking put; if queue is full, drop the old frame and put the new one
+            if self.queue.full():
+                try:
+                    self.queue.get_nowait()
+                    self.queue.task_done()
+                except asyncio.QueueEmpty:
+                    pass
+            
             self.queue.put_nowait(frame_data)
-        except asyncio.QueueFull:
-            logger.warning(f"Processing queue full, dropping frame for session {frame_data.get('exam_session_id')}")
+        except Exception as e:
+            logger.warning(f"Failed to enqueue frame for session {frame_data.get('exam_session_id')}: {e}")
 
     async def _process_queue(self):
         """
@@ -93,7 +97,7 @@ class ProcessingPipeline:
         Run inference on a single frame.
         """
         session_id = data["exam_session_id"]
-        candidate_id = data["candidate_id"]
+        # candidate_id = data["candidate_id"]
         frame = data["frame"]
         timestamp = data["timestamp"]
         enrolled_embedding = data.get("enrolled_embedding")
@@ -102,15 +106,15 @@ class ProcessingPipeline:
              # Using ContinuousVerifier to verify frame
              # This reuses the existing logic which calls InsightFace
              # logger.info("Running continuous verification inference")
-             alert = await self.verifier.verify_frame_continuous(
-                 exam_session_id=session_id,
-                 candidate_id=candidate_id,
+             alerts = self.verifier.verify_frame_continuous(
+                 # exam_session_id=session_id,
+                 # candidate_id=candidate_id,
                  frame=frame,
                  timestamp=timestamp,
                  enrolled_embedding=enrolled_embedding
              )
 
-             if alert:
+             async for alert in alerts:
                  await self.alert_dispatcher.dispatch(alert)
 
         except Exception as e:

@@ -43,6 +43,8 @@
                 <video id="video" autoplay playsinline muted width="320" height="240"
                     style="background: black;"></video>
                 <div id="cameraStatus" style="margin-top: 5px; font-size: 0.9em; color: #666;"></div>
+                <div id="frameStats" style="margin-top: 5px; font-size: 0.9em; color: #007bff; font-weight: bold;">
+                    Frames Sent: 0</div>
             </div>
             <div style="flex-grow: 1;">
                 <h4>Real-time Alerts (DataChannel)</h4>
@@ -255,7 +257,7 @@
                 iceServers: [
                     { urls: "stun:stun.l.google.com:19302" },
                     {
-                        urls: "turn:10.120.161.104:3478",
+                        urls: "turn:10.24.17.104:3478",
                         username: "user",
                         credential: "password"
                     }
@@ -276,11 +278,13 @@
                     const stats = await pc.getStats();
                     stats.forEach(report => {
                         if (report.type === 'outbound-rtp' && report.kind === 'video') {
-                            console.log(`Video Stats: BytesSent: ${report.bytesSent}, PacketsSent: ${report.packetsSent}`);
+                            const framesSent = report.framesSent || 0;
+                            document.getElementById("frameStats").innerText = `Frames Sent: ${framesSent}`;
+                            console.log(`Video Stats: BytesSent: ${report.bytesSent}, PacketsSent: ${report.packetsSent}, FramesSent: ${framesSent}`);
                         }
                     });
                 }
-            }, 2000);
+            }, 1000);
 
             // Add Transceiver (Send only)
             stream.getTracks().forEach(track => pc.addTransceiver(track, { direction: 'sendonly' }));
@@ -357,7 +361,7 @@
                 const div = document.createElement("div");
                 div.style.borderBottom = "1px solid #eee";
                 div.style.padding = "5px";
-                div.innerText = `${new Date().toLocaleTimeString()} - ${data.message} (Score: ${data.severity_score})`;
+                div.innerText = `${new Date().toLocaleTimeString()} - ${data.message} (Score: ${data.severity_score}) (sim: ${data?.evidence?.similarity_score})`;
                 if (data.severity_score > 0.8) div.style.color = "red";
                 else if (data.severity_score > 0.5) div.style.color = "orange";
                 el.prepend(div);
