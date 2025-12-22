@@ -15,32 +15,32 @@ Supports:
 
 import numpy as np
 import pandas as pd
-from typing import Tuple, Dict, List, Optional
+# from typing import Tuple, Dict, List, Optional
 import warnings
 
 warnings.filterwarnings('ignore')
 
 # ML Libraries
-from sklearn.model_selection import train_test_split, TimeSeriesSplit
-from sklearn.preprocessing import StandardScaler, RobustScaler
+# from sklearn.model_selection import train_test_split, TimeSeriesSplit
+# from sklearn.preprocessing import StandardScaler, RobustScaler
 from sklearn.metrics import (
     classification_report, confusion_matrix, roc_auc_score,
     precision_recall_curve, f1_score, fbeta_score
 )
-from sklearn.utils.class_weight import compute_class_weight
-from imblearn.over_sampling import SMOTE
+# from sklearn.utils.class_weight import compute_class_weight
+# from imblearn.over_sampling import SMOTE
 
-import xgboost as xgb
-from xgboost import XGBClassifier
+# import xgboost as xgb
+# from xgboost import XGBClassifier
 
 # Deep Learning
-import tensorflow as tf
-from tensorflow.keras import layers, models, callbacks
-from tensorflow.keras.utils import to_categorical
+# import tensorflow as tf
+# from tensorflow.keras import layers, models, callbacks
+# from tensorflow.keras.utils import to_categorical
 
 # Visualization and Interpretability
-import matplotlib.pyplot as plt
-import seaborn as sns
+# import matplotlib.pyplot as plt
+# import seaborn as sns
 
 try:
     import shap
@@ -356,127 +356,127 @@ class FeatureEngineer:
         return pd.DataFrame(window_features)
 
 
-
-
-def evaluate_model(y_true: np.ndarray, y_pred: np.ndarray,
-                   y_proba: np.ndarray = None, model_name: str = "Model"):
-    """
-    Comprehensive model evaluation.
-    """
-    print(f"\n{'=' * 60}")
-    print(f"{model_name} Evaluation Results")
-    print(f"{'=' * 60}\n")
-
-    # Classification report
-    print("Classification Report:")
-    # FIX: Explicitly specify labels to handle cases where one class might be missing in y_true
-    print(classification_report(y_true, y_pred,
-                                target_names=['Not Cheating', 'Cheating'],
-                                labels=[0, 1],
-                                digits=4))
-
-    # Confusion Matrix
-    # FIX: Explicitly specify labels to handle cases where one class might be missing in y_true
-    cm = confusion_matrix(y_true, y_pred, labels=[0, 1])
-    print("\nConfusion Matrix:")
-    print(f"{'':15} {'Predicted No':15} {'Predicted Yes':15}")
-    print(f"{'Actual No':15} {cm[0, 0]:<15} {cm[0, 1]:<15}")
-    print(f"{'Actual Yes':15} {cm[1, 0]:<15} {cm[1, 1]:<15}")
-
-    # Additional metrics
-    if y_proba is not None:
-        auc_score = roc_auc_score(y_true, y_proba)
-        print(f"\nAUC-ROC Score: {auc_score:.4f}")
-
-    # F-beta scores (F2 emphasizes recall)
-    # FIX: Specify pos_label for binary classification metrics to ensure consistent behavior
-    f1 = f1_score(y_true, y_pred, pos_label=1)
-    f2 = fbeta_score(y_true, y_pred, beta=2, pos_label=1)
-    print(f"\nF1 Score: {f1:.4f}")
-    print(f"F2 Score (emphasizes recall): {f2:.4f}")
-
-    return {
-        'classification_report': classification_report(y_true, y_pred, output_dict=True, labels=[0, 1]),
-        'confusion_matrix': cm,
-        'f1_score': f1,
-        'f2_score': f2,
-        'auc_score': auc_score if y_proba is not None else None
-    }
-
-
-def plot_training_history(history, save_path: str = None):
-    """Plot training history for LSTM model."""
-    fig, axes = plt.subplots(2, 2, figsize=(15, 10))
-
-    # Loss
-    axes[0, 0].plot(history.history['loss'], label='Training Loss')
-    if 'val_loss' in history.history:
-        axes[0, 0].plot(history.history['val_loss'], label='Validation Loss')
-    axes[0, 0].set_title('Model Loss')
-    axes[0, 0].set_xlabel('Epoch')
-    axes[0, 0].set_ylabel('Loss')
-    axes[0, 0].legend()
-    axes[0, 0].grid(True)
-
-    # Accuracy
-    axes[0, 1].plot(history.history['accuracy'], label='Training Accuracy')
-    if 'val_accuracy' in history.history:
-        axes[0, 1].plot(history.history['val_accuracy'], label='Validation Accuracy')
-    axes[0, 1].set_title('Model Accuracy')
-    axes[0, 1].set_xlabel('Epoch')
-    axes[0, 1].set_ylabel('Accuracy')
-    axes[0, 1].legend()
-    axes[0, 1].grid(True)
-
-    # Precision
-    if 'precision' in history.history:
-        axes[1, 0].plot(history.history['precision'], label='Training Precision')
-        if 'val_precision' in history.history:
-            axes[1, 0].plot(history.history['val_precision'], label='Validation Precision')
-        axes[1, 0].set_title('Model Precision')
-        axes[1, 0].set_xlabel('Epoch')
-        axes[1, 0].set_ylabel('Precision')
-        axes[1, 0].legend()
-        axes[1, 0].grid(True)
-
-    # Recall
-    if 'recall' in history.history:
-        axes[1, 1].plot(history.history['recall'], label='Training Recall')
-        if 'val_recall' in history.history:
-            axes[1, 1].plot(history.history['val_recall'], label='Validation Recall')
-        axes[1, 1].set_title('Model Recall')
-        axes[1, 1].set_xlabel('Epoch')
-        axes[1, 1].set_ylabel('Recall')
-        axes[1, 1].legend()
-        axes[1, 1].grid(True)
-
-    plt.tight_layout()
-
-    if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        print(f"Training history plot saved to {save_path}")
-
-    plt.show()
-
-
-def plot_feature_importance(feature_importance_df: pd.DataFrame,
-                            top_n: int = 20, save_path: str = None):
-    """Plot feature importance."""
-    plt.figure(figsize=(12, 8))
-
-    top_features = feature_importance_df.head(top_n)
-    plt.barh(range(len(top_features)), top_features['importance'])
-    plt.yticks(range(len(top_features)), top_features['feature'])
-    plt.xlabel('Importance')
-    plt.title(f'Top {top_n} Feature Importances')
-    plt.gca().invert_yaxis()
-    plt.tight_layout()
-
-    if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        print(f"Feature importance plot saved to {save_path}")
-
-    plt.show()
+#
+#
+# def evaluate_model(y_true: np.ndarray, y_pred: np.ndarray,
+#                    y_proba: np.ndarray = None, model_name: str = "Model"):
+#     """
+#     Comprehensive model evaluation.
+#     """
+#     print(f"\n{'=' * 60}")
+#     print(f"{model_name} Evaluation Results")
+#     print(f"{'=' * 60}\n")
+#
+#     # Classification report
+#     print("Classification Report:")
+#     # FIX: Explicitly specify labels to handle cases where one class might be missing in y_true
+#     print(classification_report(y_true, y_pred,
+#                                 target_names=['Not Cheating', 'Cheating'],
+#                                 labels=[0, 1],
+#                                 digits=4))
+#
+#     # Confusion Matrix
+#     # FIX: Explicitly specify labels to handle cases where one class might be missing in y_true
+#     cm = confusion_matrix(y_true, y_pred, labels=[0, 1])
+#     print("\nConfusion Matrix:")
+#     print(f"{'':15} {'Predicted No':15} {'Predicted Yes':15}")
+#     print(f"{'Actual No':15} {cm[0, 0]:<15} {cm[0, 1]:<15}")
+#     print(f"{'Actual Yes':15} {cm[1, 0]:<15} {cm[1, 1]:<15}")
+#
+#     # Additional metrics
+#     if y_proba is not None:
+#         auc_score = roc_auc_score(y_true, y_proba)
+#         print(f"\nAUC-ROC Score: {auc_score:.4f}")
+#
+#     # F-beta scores (F2 emphasizes recall)
+#     # FIX: Specify pos_label for binary classification metrics to ensure consistent behavior
+#     f1 = f1_score(y_true, y_pred, pos_label=1)
+#     f2 = fbeta_score(y_true, y_pred, beta=2, pos_label=1)
+#     print(f"\nF1 Score: {f1:.4f}")
+#     print(f"F2 Score (emphasizes recall): {f2:.4f}")
+#
+#     return {
+#         'classification_report': classification_report(y_true, y_pred, output_dict=True, labels=[0, 1]),
+#         'confusion_matrix': cm,
+#         'f1_score': f1,
+#         'f2_score': f2,
+#         'auc_score': auc_score if y_proba is not None else None
+#     }
+#
+#
+# def plot_training_history(history, save_path: str = None):
+#     """Plot training history for LSTM model."""
+#     fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+#
+#     # Loss
+#     axes[0, 0].plot(history.history['loss'], label='Training Loss')
+#     if 'val_loss' in history.history:
+#         axes[0, 0].plot(history.history['val_loss'], label='Validation Loss')
+#     axes[0, 0].set_title('Model Loss')
+#     axes[0, 0].set_xlabel('Epoch')
+#     axes[0, 0].set_ylabel('Loss')
+#     axes[0, 0].legend()
+#     axes[0, 0].grid(True)
+#
+#     # Accuracy
+#     axes[0, 1].plot(history.history['accuracy'], label='Training Accuracy')
+#     if 'val_accuracy' in history.history:
+#         axes[0, 1].plot(history.history['val_accuracy'], label='Validation Accuracy')
+#     axes[0, 1].set_title('Model Accuracy')
+#     axes[0, 1].set_xlabel('Epoch')
+#     axes[0, 1].set_ylabel('Accuracy')
+#     axes[0, 1].legend()
+#     axes[0, 1].grid(True)
+#
+#     # Precision
+#     if 'precision' in history.history:
+#         axes[1, 0].plot(history.history['precision'], label='Training Precision')
+#         if 'val_precision' in history.history:
+#             axes[1, 0].plot(history.history['val_precision'], label='Validation Precision')
+#         axes[1, 0].set_title('Model Precision')
+#         axes[1, 0].set_xlabel('Epoch')
+#         axes[1, 0].set_ylabel('Precision')
+#         axes[1, 0].legend()
+#         axes[1, 0].grid(True)
+#
+#     # Recall
+#     if 'recall' in history.history:
+#         axes[1, 1].plot(history.history['recall'], label='Training Recall')
+#         if 'val_recall' in history.history:
+#             axes[1, 1].plot(history.history['val_recall'], label='Validation Recall')
+#         axes[1, 1].set_title('Model Recall')
+#         axes[1, 1].set_xlabel('Epoch')
+#         axes[1, 1].set_ylabel('Recall')
+#         axes[1, 1].legend()
+#         axes[1, 1].grid(True)
+#
+#     plt.tight_layout()
+#
+#     if save_path:
+#         plt.savefig(save_path, dpi=300, bbox_inches='tight')
+#         print(f"Training history plot saved to {save_path}")
+#
+#     plt.show()
+#
+#
+# def plot_feature_importance(feature_importance_df: pd.DataFrame,
+#                             top_n: int = 20, save_path: str = None):
+#     """Plot feature importance."""
+#     plt.figure(figsize=(12, 8))
+#
+#     top_features = feature_importance_df.head(top_n)
+#     plt.barh(range(len(top_features)), top_features['importance'])
+#     plt.yticks(range(len(top_features)), top_features['feature'])
+#     plt.xlabel('Importance')
+#     plt.title(f'Top {top_n} Feature Importances')
+#     plt.gca().invert_yaxis()
+#     plt.tight_layout()
+#
+#     if save_path:
+#         plt.savefig(save_path, dpi=300, bbox_inches='tight')
+#         print(f"Feature importance plot saved to {save_path}")
+#
+#     plt.show()
 
 
 # Example usage and main training pipeline
