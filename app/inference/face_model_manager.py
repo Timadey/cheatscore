@@ -27,6 +27,7 @@ class FaceModelManager:
         self.model_name = settings.face_verification_model  # Use verification model as primary
         self.device = settings.ai_model_device
         self.is_initialized = False
+        self.is_predictor_initialized = False
 
     @classmethod
     def get_instance(cls):
@@ -73,13 +74,20 @@ class FaceModelManager:
                     # allowed_modules=['det', 'rec'] # Only load detection and recognition
                 )
 
+
                 # Prepare the model with detection threshold
                 self.app.prepare(
                     ctx_id=self._get_ctx_id(),
                     det_thresh=settings.face_detection_confidence,
                     det_size=(settings.face_detection_size, settings.face_detection_size)
                 )
+                self.is_initialized = True
+                logger.info("Global FaceAnalysis Model initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize Global FaceAnalysis Model: {e}")
+                raise
 
+            try:
                 # Initialize Live Proctoring Monitor
                 BASE_DIR = Path(__file__).resolve().parent
                 model_path = (
@@ -92,13 +100,11 @@ class FaceModelManager:
                 logger.info("Initializing Live Proctoring Monitor...")
                 self.predictor = LSTMCheatingDetector()
                 self.predictor.load(filepath=str(model_path))
-
-                self.is_initialized = True
-                logger.info("Global FaceAnalysis Model initialized successfully")
-
+                self.is_predictor_initialized = True
             except Exception as e:
-                logger.error(f"Failed to initialize Global FaceAnalysis Model: {e}")
-                raise
+                logger.error(f"Failed to initialize Live Proctoring Monitor: {e}")
+
+
 
     def get_app(self) -> FaceAnalysis:
         """Get the initialized FaceAnalysis app."""
@@ -111,7 +117,7 @@ class FaceModelManager:
 
     def get_predictor(self) -> LSTMCheatingDetector:
         """Get the initialized Live Proctoring Monitor predictor."""
-        if not self.is_initialized or self.predictor is None:
+        if not self.is_predictor_initialized or self.predictor is None:
             # Auto-initialize if not done yet (lazy loading fallback)
             logger.warning("Live Proctoring Monitor accessed before explicit initialization. Initializing now...")
             self.initialize()
