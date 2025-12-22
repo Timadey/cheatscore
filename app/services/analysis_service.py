@@ -46,7 +46,7 @@ class AnalysisService:
                     return record.analysis
 
             # Fallback to real-time frames in Redis
-            metadata_frames = await frame_buffer.get_metadata_frames(exam_session_id, limit=100000)
+            metadata_frames = await frame_buffer.get_metadata_frames(exam_session_id, limit=200000)
 
             # metadata_frames is a list of dicts; Analyzer expects list of frame dicts
             analyzer = ExamSessionAnalyzer(model_path=self.model_path, model_type=self.model_type)

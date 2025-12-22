@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSoc
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 import json
-from typing import Dict, Set
+from typing import Dict, Set, Any
 from datetime import datetime
 
 from app.schemas import SessionStartRequest, SessionStartResponse, WSAlertMessage, AlertEvent, EventType
@@ -21,6 +21,32 @@ from app.models import FaceEnrollment
 from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
+
+from pydantic import BaseModel, Field
+
+class FallbackFramePayload(BaseModel):
+    session_id: str = Field(..., min_length=1)
+    extracted_features: Dict[str, Any]
+
+async def ingest_metadata_frame(
+    session_id: str,
+    payload: dict,
+):
+    """
+    Single ingestion path for WS + HTTP fallback.
+    """
+    if not payload:
+        return
+
+    from app.utils.frame_buffer import FrameBuffer
+
+    fb = FrameBuffer()
+    try:
+        await fb.store_metadata_frame(session_id, payload)
+    finally:
+        await fb.close()
+
+
 
 router = APIRouter()
 
@@ -98,10 +124,7 @@ class ConnectionManager:
                     payload = data
 
                 if payload:
-                    from app.utils.frame_buffer import FrameBuffer
-                    fb = FrameBuffer()
-                    await fb.store_metadata_frame(session_id, payload)
-                    await fb.close()
+                    await ingest_metadata_frame(session_id, payload)
 
                     # await session_service.increment_frame_count(session_id)
 
@@ -318,3 +341,46 @@ async def websocket_alerts(websocket: WebSocket, session_id: str):
         manager.disconnect(websocket, session_id)
     except Exception as e:
         logger.error(f"WebSocket error: {e}", exc_info=True)
+
+@router.post(
+    "/ws/fallback",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def fallback_frame_ingest(
+    data: FallbackFramePayload,
+):
+    """
+    HTTP fallback for clients that cannot maintain WebSocket connections.
+
+    Accepts extracted_features and stores them in the frame buffer.
+    """
+    session_service = SessionService()
+
+    session = await session_service.get_session(data.session_id)
+    if not session or session.get("status") != "active":
+        raise HTTPException(
+            status_code=404,
+            detail="Session not active or does not exist",
+        )
+
+    try:
+        await ingest_metadata_frame(
+            session_id=data.session_id,
+            payload=data.extracted_features,
+        )
+    except Exception as e:
+        logger.error(
+            f"Fallback ingest failed for {data.session_id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to ingest frame features",
+        )
+
+    return {
+        "status": "accepted",
+        "session_id": data.session_id,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+

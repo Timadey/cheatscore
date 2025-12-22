@@ -137,6 +137,7 @@ class FrameBuffer:
         redis = await self._get_redis()
         timestamp = timestamp or datetime.utcnow()
         frame_id = f"META-{exam_session_id}-{timestamp.timestamp()}"
+        data['session_id'] = exam_session_id
 
         try:
             frame_data = {
