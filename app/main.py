@@ -10,6 +10,7 @@ from pathlib import Path
 
 from app.config import settings
 from app.api.v1 import enrollment, verification, session, admin, webrtc
+from app.prediction.live_predictor import LiveProctoringMonitor
 from app.utils.redis_client import close_redis
 # from app.alerts.datachannel_dispatcher import AlertDispatcher
 # Include routers
@@ -44,6 +45,9 @@ async def lifespan(app: FastAPI):
         from app.inference.face_model_manager import FaceModelManager
         # blocking call to load models
         FaceModelManager.get_instance().initialize()
+
+        # Load live proctoring model
+        logger.info("AI models initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize AI models: {e}")
         # Depending on requirements, we might want to raise here

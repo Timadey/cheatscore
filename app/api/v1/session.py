@@ -14,7 +14,9 @@ from app.schemas import SessionStartRequest, SessionStartResponse, WSAlertMessag
 from app.config import settings
 from app.services.session_service import SessionService
 from app.services.verification_service import VerificationService
+from app.services.analysis_service import AnalysisService
 from app.utils.db import get_db
+from app.utils.redis_client import get_redis
 from app.models import FaceEnrollment
 from sqlalchemy import select
 
@@ -68,8 +70,11 @@ class ConnectionManager:
     @staticmethod
     async def receive_loop(websocket: WebSocket, session_id: str):
         while True:
-            data = await websocket.receive_json()
-            # Check if session is still active
+            try:
+                data = await websocket.receive_json()
+            except WebSocketDisconnect:
+                raise
+
             session_service = SessionService()
             session = await session_service.get_session(session_id)
 
@@ -80,7 +85,29 @@ class ConnectionManager:
                     "timestamp": datetime.utcnow().isoformat()
                 })
                 break
-            print("Received:", data)
+
+            # Differentiate message types
+            try:
+                payload = None
+                if isinstance(data, dict) and "extracted_features" in data:
+                    payload = data["extracted_features"]
+                    # TODO: verify payload  received, for now we skip verification
+                elif isinstance(data, dict) and data.get("type") == "frame":
+                    payload = data.get("payload") or data.get("frame")
+                elif isinstance(data, dict):
+                    payload = data
+
+                if payload:
+                    from app.utils.frame_buffer import FrameBuffer
+                    fb = FrameBuffer()
+                    await fb.store_metadata_frame(session_id, payload)
+                    await fb.close()
+
+                    # await session_service.increment_frame_count(session_id)
+
+                logger.debug(f"Received websocket message for {session_id}")
+            except Exception as e:
+                logger.error(f"Error processing websocket message for {session_id}: {e}", exc_info=True)
 
     @staticmethod
     async def heartbeat_loop(websocket: WebSocket, session_id: str):
@@ -164,7 +191,7 @@ async def end_session(
     session_id: str,
     db: AsyncSession = Depends(get_db)
 ):
-    """End an exam session."""
+    """End an exam session and run final analysis."""
     try:
         session_service = SessionService()
 
@@ -179,11 +206,12 @@ async def end_session(
         # End session
         await session_service.end_session(session_id)
 
-        # Clear frame buffer
-        from app.utils.frame_buffer import FrameBuffer
-        frame_buffer = FrameBuffer()
-        await frame_buffer.clear_session_frames(session_id)
-        await frame_buffer.close()
+        # Finalize analysis: persist analysis, dump frames, clear redis
+        analysis_service = AnalysisService()
+        try:
+            await analysis_service.finalize_session_analysis(session_id, db)
+        except Exception as e:
+            logger.error(f"Final analysis failed for {session_id}: {e}", exc_info=True)
 
         # Close WebSocket connections
         await manager.broadcast_to_session(
@@ -203,6 +231,38 @@ async def end_session(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to end session"
         )
+
+
+@router.post("/{session_id}/analyze")
+async def request_analysis(
+    session_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Request an on-demand analysis for a session (throttled to once per second).
+
+    If the session is active, analysis uses frames in Redis; otherwise it will
+    return persisted analysis if available.
+    """
+    try:
+        # Throttle using Redis per-session lock of 1 second
+        redis = await get_redis()
+        lock_key = f"analysis_lock:{session_id}"
+        acquired = await redis.set(lock_key, "1", nx=True, ex=1)
+        if not acquired:
+            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                                detail="Analysis requests are limited to once per second")
+
+        analysis_service = AnalysisService()
+        report = await analysis_service.analyze_session(session_id, db=db)
+
+        return report
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error requesting analysis for {session_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail="Failed to run analysis")
 
 
 @router.get("/{session_id}")
@@ -258,30 +318,3 @@ async def websocket_alerts(websocket: WebSocket, session_id: str):
         manager.disconnect(websocket, session_id)
     except Exception as e:
         logger.error(f"WebSocket error: {e}", exc_info=True)
-#
-# async def send_alert_to_frontend(session_id: str, alert: AlertEvent):
-#     """
-#     Broadcast alert to frontend via WebSocket.
-#
-#     Args:
-#         session_id: Exam session identifier
-#         alert: Alert event to send
-#     """
-#     try:
-#         ws_message = WSAlertMessage(
-#             event_id=alert.event_id,
-#             exam_session_id=alert.exam_session_id,
-#             event_type=alert.event_type,
-#             severity_score=alert.severity_score,
-#             timestamp=alert.timestamp,
-#             message=f"Alert: {alert.event_type.value}",
-#             action_required="warning" if alert.severity_score < 0.8 else "escalate",
-#             evidence_thumbnail=None  # Can be added if needed
-#         )
-#
-#         message_json = ws_message.model_dump_json()
-#         await manager.broadcast_to_session(session_id, message_json)
-#
-#     except Exception as e:
-#         logger.error(f"Error sending alert to frontend: {e}", exc_info=True)
-#
