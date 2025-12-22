@@ -2,6 +2,7 @@
 Signaling Router.
 """
 import logging
+from datetime import timedelta
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
@@ -84,6 +85,7 @@ async def get_livekit_room_token(
     token = api.AccessToken(api_key, api_secret) \
         .with_identity(member_id) \
         .with_name(name) \
+        .with_ttl(timedelta(hours=4)) \
         .with_grants(api.VideoGrants(
             room_join=True,
             room=exam_id,

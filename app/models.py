@@ -118,3 +118,28 @@ class AlertLog(Base):
         Index("idx_alert_timestamp", "timestamp"),
         Index("idx_alert_dispatched", "dispatched"),
     )
+
+
+class ExamAnalysis(Base):
+    """Stored analysis result for an exam session."""
+    __tablename__ = "exam_analyses"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    exam_session_id = Column(String(200), nullable=False, index=True)
+    candidate_id = Column(String(100), nullable=True, index=True)
+
+    # Full analysis report as JSON
+    analysis = Column(JSON, nullable=False)
+
+    # Summarized verdict fields for quick queries
+    is_cheating = Column(String(10), nullable=False, index=True)
+    confidence = Column(Float, nullable=True, index=True)
+    verdict_summary = Column(String(255), nullable=True)
+
+    analysis_timestamp = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        Index("idx_analysis_session", "exam_session_id"),
+        Index("idx_analysis_candidate", "candidate_id"),
+    )

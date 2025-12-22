@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 import logging
 import redis.asyncio as aioredis
 import pickle
+import os
 
 from app.config import settings
 
@@ -47,7 +48,10 @@ class FrameBuffer:
         self.redis_client = redis_client
         self.retention_seconds = settings.frame_buffer_retention_seconds
         self._redis_pool = None
-    
+        # Directory to dump session frames when clearing
+        self.dump_dir = os.path.join(os.getcwd(), "analysis_dumps")
+        os.makedirs(self.dump_dir, exist_ok=True)
+
     async def _get_redis(self) -> aioredis.Redis:
         """Get or create Redis client."""
         if self.redis_client is None:
@@ -120,7 +124,41 @@ class FrameBuffer:
         except Exception as e:
             logger.error(f"Failed to store frame: {e}", exc_info=True)
             raise
-    
+
+    async def store_metadata_frame(
+        self,
+        exam_session_id: str,
+        data: Dict[str, Any],
+        timestamp: Optional[datetime] = None
+    ) -> str:
+        """
+        Store metadata-only frame (no image) in Redis.
+        """
+        redis = await self._get_redis()
+        timestamp = timestamp or datetime.utcnow()
+        frame_id = f"META-{exam_session_id}-{timestamp.timestamp()}"
+
+        try:
+            frame_data = {
+                "frame_id": frame_id,
+                "exam_session_id": exam_session_id,
+                "timestamp": timestamp.isoformat(),
+                "metadata": data
+            }
+
+            key = f"frame_meta:{exam_session_id}:{frame_id}"
+            await redis.setex(key, self.retention_seconds, json.dumps(frame_data))
+
+            sorted_set_key = f"frames_meta:{exam_session_id}"
+            await redis.zadd(sorted_set_key, {frame_id: timestamp.timestamp()})
+            await redis.expire(sorted_set_key, self.retention_seconds)
+
+            logger.debug(f"Stored metadata frame {frame_id} for session {exam_session_id}")
+            return frame_id
+        except Exception as e:
+            logger.error(f"Failed to store metadata frame: {e}", exc_info=True)
+            raise
+
     async def get_frame(self, exam_session_id: str, frame_id: str) -> Optional[Frame]:
         """
         Retrieve a specific frame.
@@ -159,7 +197,51 @@ class FrameBuffer:
         except Exception as e:
             logger.error(f"Failed to get frame {frame_id}: {e}", exc_info=True)
             return None
-    
+
+    async def get_metadata_frames(
+        self,
+        exam_session_id: str,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        limit: int = 10000
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve metadata-only frames (JSON messages) in time range.
+        Returns list of dicts (no image decoding).
+        """
+        redis = await self._get_redis()
+        try:
+            end_time = end_time or datetime.utcnow()
+            start_time = start_time or (end_time - timedelta(seconds=self.retention_seconds))
+
+            sorted_set_key = f"frames_meta:{exam_session_id}"
+            frame_ids = await redis.zrangebyscore(
+                sorted_set_key,
+                min=start_time.timestamp(),
+                max=end_time.timestamp(),
+                start=0,
+                num=limit
+            )
+
+            frame_ids = [fid.decode('utf-8') if isinstance(fid, bytes) else fid for fid in frame_ids]
+            frames = []
+            for frame_id in frame_ids:
+                key = f"frame_meta:{exam_session_id}:{frame_id}"
+                data = await redis.get(key)
+                if not data:
+                    continue
+                frame_data = json.loads(data)
+                # merge metadata and add timestamp/frame_id
+                md = frame_data.get("metadata", {})
+                md["frame_id"] = frame_data.get("frame_id")
+                md["timestamp"] = frame_data.get("timestamp")
+                frames.append(md)
+
+            return frames
+        except Exception as e:
+            logger.error(f"Failed to get metadata frames: {e}", exc_info=True)
+            return []
+
     async def get_frames(
         self,
         exam_session_id: str,
@@ -211,7 +293,7 @@ class FrameBuffer:
         except Exception as e:
             logger.error(f"Failed to get frames: {e}", exc_info=True)
             return []
-    
+
     async def get_recent_frames(
         self,
         exam_session_id: str,
@@ -259,7 +341,15 @@ class FrameBuffer:
             
             # Delete sorted set
             await redis.delete(sorted_set_key)
-            
+
+            # Also clear metadata frames
+            meta_sorted = f"frames_meta:{exam_session_id}"
+            meta_ids = await redis.zrange(meta_sorted, 0, -1)
+            for mid in meta_ids:
+                mid_str = mid.decode('utf-8') if isinstance(mid, bytes) else mid
+                await redis.delete(f"frame_meta:{exam_session_id}:{mid_str}")
+            await redis.delete(meta_sorted)
+
             logger.info(f"Cleared {deleted} frames for session {exam_session_id}")
             return deleted
             
@@ -267,6 +357,23 @@ class FrameBuffer:
             logger.error(f"Failed to clear frames: {e}", exc_info=True)
             return 0
     
+    async def dump_metadata_to_file(self, exam_session_id: str, filepath: Optional[str] = None) -> str:
+        """
+        Dump all metadata frames for a session to a JSON file and return path.
+        """
+        frames = await self.get_metadata_frames(exam_session_id, limit=100000)
+        if not frames:
+            return ""
+        filepath = filepath or os.path.join(self.dump_dir, f"{exam_session_id}_frames.json")
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(frames, f, ensure_ascii=False, indent=2)
+            logger.info(f"Dumped metadata frames for {exam_session_id} to {filepath}")
+            return filepath
+        except Exception as e:
+            logger.error(f"Failed to dump frames to file: {e}", exc_info=True)
+            return ""
+
     async def close(self):
         """Close Redis connection."""
         if self._redis_pool:
