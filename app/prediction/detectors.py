@@ -10,27 +10,27 @@ from app.prediction.utils import FeatureEngineer
 
 
 # ML Libraries
-from sklearn.model_selection import train_test_split, TimeSeriesSplit
+# from sklearn.model_selection import train_test_split, TimeSeriesSplit
 from sklearn.preprocessing import StandardScaler, RobustScaler
-from sklearn.metrics import (
-    classification_report, confusion_matrix, roc_auc_score,
-    precision_recall_curve, f1_score, fbeta_score
-)
-from sklearn.utils.class_weight import compute_class_weight
-from imblearn.over_sampling import SMOTE
-
-import xgboost as xgb
-from xgboost import XGBClassifier
+# from sklearn.metrics import (
+#     classification_report, confusion_matrix, roc_auc_score,
+#     precision_recall_curve, f1_score, fbeta_score
+# )
+# from sklearn.utils.class_weight import compute_class_weight
+# from imblearn.over_sampling import SMOTE
+#
+# import xgboost as xgb
+# from xgboost import XGBClassifier
 
 # Deep Learning
-import tensorflow as tf
-from tensorflow.keras import layers, models, callbacks
-from tensorflow.keras.utils import to_categorical
+# import tensorflow as tf
+from tensorflow.keras import models
+# from tensorflow.keras.utils import to_categorical
 
 # Visualization and Interpretability
-import seaborn as sns
+# import seaborn as sns
 import joblib
-
+#
 try:
     import shap
 
@@ -66,67 +66,67 @@ class XGBoostCheatingDetector:
 
         return X, y
 
-    def train(self, X_train: np.ndarray, y_train: np.ndarray,
-              X_val: np.ndarray = None, y_val: np.ndarray = None,
-              use_smote: bool = True):
-        """
-        Train XGBoost model.
-
-        Args:
-            X_train: Training features
-            y_train: Training labels
-            X_val: Validation features (optional)
-            y_val: Validation labels (optional)
-            use_smote: Whether to use SMOTE for handling imbalance
-        """
-        # Scale features
-        X_train_scaled = self.scaler.fit_transform(X_train)
-
-        # Handle class imbalance
-        if use_smote and len(np.unique(y_train)) > 1:
-            print("Applying SMOTE for class balancing...")
-            smote = SMOTE(random_state=42)
-            X_train_scaled, y_train = smote.fit_resample(X_train_scaled, y_train)
-
-        # Compute class weights
-        classes = np.unique(y_train)
-        self.class_weights = compute_class_weight('balanced', classes=classes, y=y_train)
-        weight_dict = {classes[i]: self.class_weights[i] for i in range(len(classes))}
-
-        sample_weights = np.array([weight_dict[label] for label in y_train])
-
-        # Train XGBoost
-        print("\nTraining XGBoost model...")
-
-        eval_set = []
-        if X_val is not None and y_val is not None:
-            X_val_scaled = self.scaler.transform(X_val)
-            eval_set = [(X_val_scaled, y_val)]
-
-        self.model = XGBClassifier(
-            n_estimators=200,
-            max_depth=6,
-            learning_rate=0.05,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            min_child_weight=3,
-            gamma=0.1,
-            reg_alpha=0.1,
-            reg_lambda=1.0,
-            random_state=42,
-            eval_metric='logloss',
-            early_stopping_rounds=20 if eval_set else None
-        )
-
-        self.model.fit(
-            X_train_scaled,
-            y_train,
-            sample_weight=sample_weights,
-            eval_set=eval_set if eval_set else None,
-            verbose=True
-        )
-
-        print("Training completed!")
+    # def train(self, X_train: np.ndarray, y_train: np.ndarray,
+    #           X_val: np.ndarray = None, y_val: np.ndarray = None,
+    #           use_smote: bool = True):
+    #     """
+    #     Train XGBoost model.
+    #
+    #     Args:
+    #         X_train: Training features
+    #         y_train: Training labels
+    #         X_val: Validation features (optional)
+    #         y_val: Validation labels (optional)
+    #         use_smote: Whether to use SMOTE for handling imbalance
+    #     """
+    #     # Scale features
+    #     X_train_scaled = self.scaler.fit_transform(X_train)
+    #
+    #     # Handle class imbalance
+    #     if use_smote and len(np.unique(y_train)) > 1:
+    #         print("Applying SMOTE for class balancing...")
+    #         smote = SMOTE(random_state=42)
+    #         X_train_scaled, y_train = smote.fit_resample(X_train_scaled, y_train)
+    #
+    #     # Compute class weights
+    #     classes = np.unique(y_train)
+    #     self.class_weights = compute_class_weight('balanced', classes=classes, y=y_train)
+    #     weight_dict = {classes[i]: self.class_weights[i] for i in range(len(classes))}
+    #
+    #     sample_weights = np.array([weight_dict[label] for label in y_train])
+    #
+    #     # Train XGBoost
+    #     print("\nTraining XGBoost model...")
+    #
+    #     eval_set = []
+    #     if X_val is not None and y_val is not None:
+    #         X_val_scaled = self.scaler.transform(X_val)
+    #         eval_set = [(X_val_scaled, y_val)]
+    #
+    #     self.model = XGBClassifier(
+    #         n_estimators=200,
+    #         max_depth=6,
+    #         learning_rate=0.05,
+    #         subsample=0.8,
+    #         colsample_bytree=0.8,
+    #         min_child_weight=3,
+    #         gamma=0.1,
+    #         reg_alpha=0.1,
+    #         reg_lambda=1.0,
+    #         random_state=42,
+    #         eval_metric='logloss',
+    #         early_stopping_rounds=20 if eval_set else None
+    #     )
+    #
+    #     self.model.fit(
+    #         X_train_scaled,
+    #         y_train,
+    #         sample_weight=sample_weights,
+    #         eval_set=eval_set if eval_set else None,
+    #         verbose=True
+    #     )
+    #
+    #     print("Training completed!")
 
     def predict(self, X: np.ndarray, threshold: float = 0.5) -> np.ndarray:
         """Predict cheating labels."""
@@ -250,99 +250,99 @@ class LSTMCheatingDetector:
 
         return X, y
 
-    def build_model(self, input_shape: Tuple[int, int]):
-        """Build LSTM model architecture."""
-        model = models.Sequential([
-            # First LSTM layer
-            layers.LSTM(64, return_sequences=True, input_shape=input_shape),
-            layers.Dropout(0.3),
-            layers.BatchNormalization(),
+    # def build_model(self, input_shape: Tuple[int, int]):
+    #     """Build LSTM model architecture."""
+    #     model = models.Sequential([
+    #         # First LSTM layer
+    #         layers.LSTM(64, return_sequences=True, input_shape=input_shape),
+    #         layers.Dropout(0.3),
+    #         layers.BatchNormalization(),
+    #
+    #         # Second LSTM layer
+    #         layers.LSTM(32, return_sequences=False),
+    #         layers.Dropout(0.3),
+    #         layers.BatchNormalization(),
+    #
+    #         # Dense layers
+    #         layers.Dense(16, activation='relu'),
+    #         layers.Dropout(0.2),
+    #         layers.Dense(8, activation='relu'),
+    #
+    #         # Output layer
+    #         layers.Dense(1, activation='sigmoid')
+    #     ])
+    #
+    #     model.compile(
+    #         optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+    #         loss='binary_crossentropy',
+    #         metrics=['accuracy', tf.keras.metrics.Precision(),
+    #                  tf.keras.metrics.Recall(), tf.keras.metrics.AUC()]
+    #     )
+    #
+    #     self.model = model
+    #     return model
 
-            # Second LSTM layer
-            layers.LSTM(32, return_sequences=False),
-            layers.Dropout(0.3),
-            layers.BatchNormalization(),
-
-            # Dense layers
-            layers.Dense(16, activation='relu'),
-            layers.Dropout(0.2),
-            layers.Dense(8, activation='relu'),
-
-            # Output layer
-            layers.Dense(1, activation='sigmoid')
-        ])
-
-        model.compile(
-            optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
-            loss='binary_crossentropy',
-            metrics=['accuracy', tf.keras.metrics.Precision(),
-                     tf.keras.metrics.Recall(), tf.keras.metrics.AUC()]
-        )
-
-        self.model = model
-        return model
-
-    def train(self, X_train: np.ndarray, y_train: np.ndarray,
-              X_val: np.ndarray = None, y_val: np.ndarray = None,
-              epochs: int = 50, batch_size: int = 32):
-        """
-        Train LSTM model.
-        """
-        # Scale features (per feature, across all sequences)
-        num_sequences, seq_len, num_features = X_train.shape
-        X_train_reshaped = X_train.reshape(-1, num_features)
-        X_train_scaled = self.scaler.fit_transform(X_train_reshaped)
-        X_train_scaled = X_train_scaled.reshape(num_sequences, seq_len, num_features)
-
-        if X_val is not None:
-            num_val_sequences = X_val.shape[0]
-            X_val_reshaped = X_val.reshape(-1, num_features)
-            X_val_scaled = self.scaler.transform(X_val_reshaped)
-            X_val_scaled = X_val_scaled.reshape(num_val_sequences, seq_len, num_features)
-            validation_data = (X_val_scaled, y_val)
-        else:
-            validation_data = None
-
-        # Build model if not already built
-        if self.model is None:
-            self.build_model(input_shape=(seq_len, num_features))
-
-        # Class weights
-        class_weight = compute_class_weight(
-            'balanced',
-            classes=np.unique(y_train),
-            y=y_train
-        )
-        class_weight_dict = {i: class_weight[i] for i in range(len(class_weight))}
-
-        # Callbacks
-        early_stopping = callbacks.EarlyStopping(
-            monitor='val_loss' if validation_data else 'loss',
-            patience=10,
-            restore_best_weights=True
-        )
-
-        reduce_lr = callbacks.ReduceLROnPlateau(
-            monitor='val_loss' if validation_data else 'loss',
-            factor=0.5,
-            patience=5,
-            min_lr=0.00001
-        )
-
-        # Train
-        print("\nTraining LSTM model...")
-        history = self.model.fit(
-            X_train_scaled, y_train,
-            validation_data=validation_data,
-            epochs=epochs,
-            batch_size=batch_size,
-            class_weight=class_weight_dict,
-            callbacks=[early_stopping, reduce_lr],
-            verbose=1
-        )
-
-        print("Training completed!")
-        return history
+    # def train(self, X_train: np.ndarray, y_train: np.ndarray,
+    #           X_val: np.ndarray = None, y_val: np.ndarray = None,
+    #           epochs: int = 50, batch_size: int = 32):
+    #     """
+    #     Train LSTM model.
+    #     """
+    #     # Scale features (per feature, across all sequences)
+    #     num_sequences, seq_len, num_features = X_train.shape
+    #     X_train_reshaped = X_train.reshape(-1, num_features)
+    #     X_train_scaled = self.scaler.fit_transform(X_train_reshaped)
+    #     X_train_scaled = X_train_scaled.reshape(num_sequences, seq_len, num_features)
+    #
+    #     if X_val is not None:
+    #         num_val_sequences = X_val.shape[0]
+    #         X_val_reshaped = X_val.reshape(-1, num_features)
+    #         X_val_scaled = self.scaler.transform(X_val_reshaped)
+    #         X_val_scaled = X_val_scaled.reshape(num_val_sequences, seq_len, num_features)
+    #         validation_data = (X_val_scaled, y_val)
+    #     else:
+    #         validation_data = None
+    #
+    #     # Build model if not already built
+    #     if self.model is None:
+    #         self.build_model(input_shape=(seq_len, num_features))
+    #
+    #     # Class weights
+    #     class_weight = compute_class_weight(
+    #         'balanced',
+    #         classes=np.unique(y_train),
+    #         y=y_train
+    #     )
+    #     class_weight_dict = {i: class_weight[i] for i in range(len(class_weight))}
+    #
+    #     # Callbacks
+    #     early_stopping = callbacks.EarlyStopping(
+    #         monitor='val_loss' if validation_data else 'loss',
+    #         patience=10,
+    #         restore_best_weights=True
+    #     )
+    #
+    #     reduce_lr = callbacks.ReduceLROnPlateau(
+    #         monitor='val_loss' if validation_data else 'loss',
+    #         factor=0.5,
+    #         patience=5,
+    #         min_lr=0.00001
+    #     )
+    #
+    #     # Train
+    #     print("\nTraining LSTM model...")
+    #     history = self.model.fit(
+    #         X_train_scaled, y_train,
+    #         validation_data=validation_data,
+    #         epochs=epochs,
+    #         batch_size=batch_size,
+    #         class_weight=class_weight_dict,
+    #         callbacks=[early_stopping, reduce_lr],
+    #         verbose=1
+    #     )
+    #
+    #     print("Training completed!")
+    #     return history
 
     def predict(self, X: np.ndarray, threshold: float = 0.5) -> np.ndarray:
         """Predict cheating labels."""
