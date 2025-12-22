@@ -67,6 +67,7 @@ models/*.pt
 models/*.pb
 *.h5
 *.keras
+!lstm_cheating_detector_model.keras
 
 # Data
 data/
