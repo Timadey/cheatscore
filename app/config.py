@@ -115,7 +115,7 @@ class Settings(BaseSettings):
     # Data Retention
     # =========================
     embedding_retention_days: int = 90
-    frame_buffer_retention_seconds: int = 5
+    frame_buffer_retention_seconds: int = 21600
     evidence_retention_days: int = 30
 
     class Config:

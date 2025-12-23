@@ -48,6 +48,30 @@ class AnalysisService:
             # Fallback to real-time frames in Redis
             metadata_frames = await frame_buffer.get_metadata_frames(exam_session_id, limit=200000)
 
+            # If there are no frames (e.g. expired Redis TTL), return a minimal report
+            if not metadata_frames:
+                logger.warning(f"No metadata frames available for session {exam_session_id} - cannot run full analysis")
+                minimal_report = {
+                    'session_info': {
+                        'session_id': exam_session_id,
+                        'student_id': None,
+                        'total_frames': 0,
+                        'duration_seconds': 0,
+                        'analysis_timestamp': datetime.utcnow().isoformat()
+                    },
+                    'verdict': {
+                        'is_cheating': False,
+                        'confidence': 0.0,
+                        'confidence_level': 'NONE',
+                        'verdict_basis': 'No frames available for analysis'
+                    },
+                    'window_analysis': {},
+                    'suspicious_events': {},
+                    'timeline': [],
+                    'recommendations': ["No frames available for analysis"]
+                }
+                return minimal_report
+
             # metadata_frames is a list of dicts; Analyzer expects list of frame dicts
             analyzer = ExamSessionAnalyzer(model_path=self.model_path, model_type=self.model_type)
 
@@ -73,8 +97,31 @@ class AnalysisService:
 
             metadata_frames = await frame_buffer.get_metadata_frames(exam_session_id, limit=100000)
 
-            analyzer = ExamSessionAnalyzer(model_path=self.model_path, model_type=self.model_type)
-            report = analyzer.analyze_session(metadata_frames, session_id=exam_session_id)
+            # If no frames available, create a minimal report but still persist
+            if not metadata_frames:
+                logger.warning(f"No metadata frames available for final analysis of {exam_session_id}")
+                report = {
+                    'session_info': {
+                        'session_id': exam_session_id,
+                        'student_id': candidate_id,
+                        'total_frames': 0,
+                        'duration_seconds': 0,
+                        'analysis_timestamp': datetime.utcnow().isoformat()
+                    },
+                    'verdict': {
+                        'is_cheating': False,
+                        'confidence': 0.0,
+                        'confidence_level': 'NONE',
+                        'verdict_basis': 'No frames available for analysis'
+                    },
+                    'window_analysis': {},
+                    'suspicious_events': {},
+                    'timeline': [],
+                    'recommendations': ["No frames available for analysis"]
+                }
+            else:
+                analyzer = ExamSessionAnalyzer(model_path=self.model_path, model_type=self.model_type)
+                report = analyzer.analyze_session(metadata_frames, session_id=exam_session_id)
 
             # Persist to DB
             try:
@@ -111,4 +158,3 @@ class AnalysisService:
             return report
         finally:
             await frame_buffer.close()
-
