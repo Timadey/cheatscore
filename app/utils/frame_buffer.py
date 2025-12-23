@@ -46,7 +46,7 @@ class FrameBuffer:
         Args:
             redis_client: Optional Redis client (will create if not provided)
         """
-        self.redis_client = get_redis()
+        self.redis_client = await get_redis()
         self.retention_seconds = settings.frame_buffer_retention_seconds
         self._redis_pool = None
         # Directory to dump session frames when clearing
