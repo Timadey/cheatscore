@@ -53,7 +53,7 @@ class FrameBuffer:
         self.dump_dir = os.path.join(os.getcwd(), "analysis_dumps")
         os.makedirs(self.dump_dir, exist_ok=True)
 
-    async def _get_redis(self) -> aioredis.Redis:
+    async def _get_redis(self):
         """Get or create Redis client."""
         if self.redis_client is None:
             self.redis_client = await get_redis()
@@ -130,21 +130,25 @@ class FrameBuffer:
         """
         Store metadata-only frame (no image) in Redis.
         """
-        redis = self._get_redis()
+        redis = await self._get_redis()
         timestamp = timestamp or datetime.utcnow()
         frame_id = f"META-{exam_session_id}-{timestamp.timestamp()}"
         data['session_id'] = exam_session_id
 
         try:
-            frame_data = {
+            # Store metadata as a Redis hash so individual fields are queryable
+            key = f"frame_meta:{exam_session_id}:{frame_id}"
+
+            mapping = {
                 "frame_id": frame_id,
                 "exam_session_id": exam_session_id,
                 "timestamp": timestamp.isoformat(),
-                "metadata": data
+                # serialize nested metadata to JSON string
+                "metadata": json.dumps(data)
             }
 
-            key = f"frame_meta:{exam_session_id}:{frame_id}"
-            await redis.hset(key, mapping=json.dumps(frame_data))
+            await redis.hset(key, mapping=mapping)
+            # Set TTL for the hash key
             await redis.expire(key, self.retention_seconds)
 
             sorted_set_key = f"frames_meta:{exam_session_id}"
@@ -225,11 +229,24 @@ class FrameBuffer:
             frames = []
             for frame_id in frame_ids:
                 key = f"frame_meta:{exam_session_id}:{frame_id}"
-                data = await redis.get(key)
-                if not data:
+                # read hash fields
+                raw = await redis.hgetall(key)
+                if not raw:
                     continue
-                frame_data = json.loads(data)
-                # merge metadata and add timestamp/frame_id
+
+                # Decode bytes to strings if necessary and build frame_data
+                frame_data = {}
+                for k, v in raw.items():
+                    key_str = k.decode('utf-8') if isinstance(k, bytes) else k
+                    val_str = v.decode('utf-8') if isinstance(v, bytes) else v
+                    if key_str == 'metadata' and val_str:
+                        try:
+                            frame_data[key_str] = json.loads(val_str)
+                        except Exception:
+                            frame_data[key_str] = {}
+                    else:
+                        frame_data[key_str] = val_str
+
                 md = frame_data.get("metadata", {})
                 md["frame_id"] = frame_data.get("frame_id")
                 md["timestamp"] = frame_data.get("timestamp")
