@@ -46,7 +46,7 @@ class FrameBuffer:
         Args:
             redis_client: Optional Redis client (will create if not provided)
         """
-        self.redis_client = await get_redis()
+        self.redis_client = None
         self.retention_seconds = settings.frame_buffer_retention_seconds
         self._redis_pool = None
         # Directory to dump session frames when clearing
@@ -56,13 +56,7 @@ class FrameBuffer:
     async def _get_redis(self) -> aioredis.Redis:
         """Get or create Redis client."""
         if self.redis_client is None:
-            if self._redis_pool is None:
-                self._redis_pool = aioredis.from_url(
-                    settings.redis_url,
-                    encoding="utf-8",
-                    decode_responses=False
-                )
-            return self._redis_pool
+            self.redis_client = await get_redis()
         return self.redis_client
     
     async def store_frame(
@@ -85,20 +79,6 @@ class FrameBuffer:
             Frame ID
         """
 
-        session_data = {
-            "exam_session_id": exam_session_id,
-            "candidate_id": candidate_id,
-            "status": "active",
-            "started_at": datetime.utcnow().isoformat(),
-            "config": json.dumps(config or {}),  # Serialize dict to JSON string
-            "frame_count": "0",  # Store as string
-            "verification_count": "0",  # Store as string
-            "last_verification": ""
-        }
-
-        key = f"{self.redis_prefix}{exam_session_id}"
-        await redis.hset(key, mapping=session_data)
-        await redis.expire(key, self.session_ttl)
         redis = await self._get_redis()
         timestamp = timestamp or datetime.utcnow()
         frame_id = f"FRAME-{exam_session_id}-{timestamp.timestamp()}"
@@ -150,7 +130,7 @@ class FrameBuffer:
         """
         Store metadata-only frame (no image) in Redis.
         """
-        redis = self.redis_client
+        redis = self._get_redis()
         timestamp = timestamp or datetime.utcnow()
         frame_id = f"META-{exam_session_id}-{timestamp.timestamp()}"
         data['session_id'] = exam_session_id
