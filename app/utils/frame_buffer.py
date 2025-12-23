@@ -13,6 +13,7 @@ import pickle
 import os
 
 from app.config import settings
+from app.utils.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ class FrameBuffer:
         Args:
             redis_client: Optional Redis client (will create if not provided)
         """
-        self.redis_client = redis_client
+        self.redis_client = get_redis()
         self.retention_seconds = settings.frame_buffer_retention_seconds
         self._redis_pool = None
         # Directory to dump session frames when clearing
@@ -83,6 +84,21 @@ class FrameBuffer:
         Returns:
             Frame ID
         """
+
+        session_data = {
+            "exam_session_id": exam_session_id,
+            "candidate_id": candidate_id,
+            "status": "active",
+            "started_at": datetime.utcnow().isoformat(),
+            "config": json.dumps(config or {}),  # Serialize dict to JSON string
+            "frame_count": "0",  # Store as string
+            "verification_count": "0",  # Store as string
+            "last_verification": ""
+        }
+
+        key = f"{self.redis_prefix}{exam_session_id}"
+        await redis.hset(key, mapping=session_data)
+        await redis.expire(key, self.session_ttl)
         redis = await self._get_redis()
         timestamp = timestamp or datetime.utcnow()
         frame_id = f"FRAME-{exam_session_id}-{timestamp.timestamp()}"
@@ -134,7 +150,7 @@ class FrameBuffer:
         """
         Store metadata-only frame (no image) in Redis.
         """
-        redis = await self._get_redis()
+        redis = self.redis_client
         timestamp = timestamp or datetime.utcnow()
         frame_id = f"META-{exam_session_id}-{timestamp.timestamp()}"
         data['session_id'] = exam_session_id
@@ -148,7 +164,8 @@ class FrameBuffer:
             }
 
             key = f"frame_meta:{exam_session_id}:{frame_id}"
-            await redis.setex(key, self.retention_seconds, json.dumps(frame_data))
+            await redis.hset(key, mapping=json.dumps(frame_data))
+            await redis.expire(key, self.retention_seconds)
 
             sorted_set_key = f"frames_meta:{exam_session_id}"
             await redis.zadd(sorted_set_key, {frame_id: timestamp.timestamp()})
