@@ -36,13 +36,13 @@ async def ingest_metadata_frame(
     Single ingestion path for WS + HTTP fallback.
     """
     if not payload:
-        return
+        return None
 
     from app.utils.frame_buffer import FrameBuffer
 
     fb = FrameBuffer()
     try:
-        await fb.store_metadata_frame(session_id, payload)
+        return await fb.store_metadata_frame(session_id, payload)
     finally:
         await fb.close()
 
@@ -364,10 +364,11 @@ async def fallback_frame_ingest(
         )
 
     try:
-        await ingest_metadata_frame(
+        frame_id = await ingest_metadata_frame(
             session_id=data.session_id,
             payload=data.extracted_features,
         )
+        logger.debug(f"ingested frames ID: {frame_id}")
     except Exception as e:
         logger.error(
             f"Fallback ingest failed for {data.session_id}: {e}",
