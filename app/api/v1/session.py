@@ -28,7 +28,7 @@ class FallbackFramePayload(BaseModel):
     session_id: str = Field(..., min_length=1)
     extracted_features: Dict[str, Any]
 
-async def ingest_metadata_frame(
+async def ingest_frame_features(
     session_id: str,
     payload: dict,
 ):
@@ -40,9 +40,11 @@ async def ingest_metadata_frame(
 
     from app.utils.frame_buffer import FrameBuffer
 
+    # print("Ingesting extracted features: ", payload)
+
     fb = FrameBuffer()
     try:
-        return await fb.store_metadata_frame(session_id, payload)
+        return await fb.store_metadata_frame(session_id, payload, storage_mode="file")
     finally:
         await fb.close()
 
@@ -124,7 +126,7 @@ class ConnectionManager:
                     payload = data
 
                 if payload:
-                    await ingest_metadata_frame(session_id, payload)
+                    await ingest_frame_features(session_id, payload)
 
                     # await session_service.increment_frame_count(session_id)
 
@@ -364,7 +366,7 @@ async def fallback_frame_ingest(
         )
 
     try:
-        frame_id = await ingest_metadata_frame(
+        frame_id = await ingest_frame_features(
             session_id=data.session_id,
             payload=data.extracted_features,
         )

@@ -236,19 +236,19 @@ class LSTMCheatingDetector:
 
                 # Label: majority vote or conservative (any positive = positive)
                 # y_label = sequence['label'].max() if 'label' in sequence.columns else 0
-                y_label = 1 if (sequence['label'].sum() >= 40 and  # At least 40/60 frames
-                                (sequence['phone_present'].sum() > 20 or
-                                 sequence[sequence['no_of_face'] > 1].shape[0] > 20)) else 0
+                # y_label = 1 if (sequence['label'].sum() >= 40 and  # At least 40/60 frames
+                #                 (sequence['phone_present'].sum() > 20 or
+                #                  sequence[sequence['no_of_face'] > 1].shape[0] > 20)) else 0
 
                 sequences.append(X_seq)
-                labels.append(y_label)
+                # labels.append(y_label)
 
         X = np.array(sequences)
-        y = np.array(labels)
+        # y = np.array(labels)
 
         self.feature_columns = feature_cols
 
-        return X, y
+        return X, np.array(labels)
 
     # def build_model(self, input_shape: Tuple[int, int]):
     #     """Build LSTM model architecture."""

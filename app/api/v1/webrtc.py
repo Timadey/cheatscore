@@ -22,6 +22,7 @@ class SessionDescription(BaseModel):
 
 class LiveKitTokenResponse(BaseModel):
     token: str
+    url: str
 
 
 class OfferRequest(BaseModel):
@@ -72,9 +73,10 @@ async def get_livekit_room_token(
             status_code=400,
             detail="exam id and candidate id and name are required",
         )
+    from app.config import settings
 
-    api_key = settings.get("LIVEKIT_API_KEY")
-    api_secret = settings.get("LIVEKIT_API_SECRET")
+    api_key = settings.livekit_api_key
+    api_secret = settings.livekit_api_secret
 
     if not api_key or not api_secret:
         raise HTTPException(
@@ -93,4 +95,4 @@ async def get_livekit_room_token(
             can_subscribe=True
         ))
 
-    return {"token": token.to_jwt(), "url": settings.get("LIVEKIT_URL")}
+    return {"token": token.to_jwt(), "url": settings.livekit_url}

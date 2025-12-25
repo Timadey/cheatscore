@@ -142,18 +142,18 @@ class AnalysisService:
                 logger.error(f"Failed to persist analysis for {exam_session_id}: {e}", exc_info=True)
 
             # Dump frames to file for archival
-            try:
-                dump_path = await frame_buffer.dump_metadata_to_file(exam_session_id)
-                logger.info(f"Dumped frames to {dump_path}")
-            except Exception as e:
-                logger.error(f"Failed to dump metadata frames for {exam_session_id}: {e}", exc_info=True)
-
-            # Clear redis frames
-            try:
-                deleted = await frame_buffer.clear_session_frames(exam_session_id)
-                logger.info(f"Cleared {deleted} frames from redis for {exam_session_id}")
-            except Exception as e:
-                logger.error(f"Failed to clear frames for {exam_session_id}: {e}", exc_info=True)
+            # try:
+            #     dump_path = await frame_buffer.dump_metadata_to_file(exam_session_id)
+            #     logger.info(f"Dumped frames to {dump_path}")
+            # except Exception as e:
+            #     logger.error(f"Failed to dump metadata frames for {exam_session_id}: {e}", exc_info=True)
+            #
+            # # Clear redis frames
+            # try:
+            #     deleted = await frame_buffer.clear_session_frames(exam_session_id)
+            #     logger.info(f"Cleared {deleted} frames from redis for {exam_session_id}")
+            # except Exception as e:
+            #     logger.error(f"Failed to clear frames for {exam_session_id}: {e}", exc_info=True)
 
             return report
         finally:

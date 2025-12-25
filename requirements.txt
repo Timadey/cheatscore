@@ -23,7 +23,7 @@ websockets==12.0
 av==12.0.0  # Updated from 9.2.0 - fixes Cython compilation errors
 
 # Machine Learning
-numpy==1.24.3
+#numpy==1.24.3
 opencv-python==4.8.1.78
 Pillow==10.1.0
 onnxruntime==1.20.1
@@ -32,7 +32,7 @@ onnxruntime==1.20.1
 
 # Face recognition (InsightFace)
 # Note: Models need to be downloaded separately
-insightface==0.7.3  # Uncomment when models are available
+# insightface==0.7.3  # Uncomment when models are available
 
 # Gaze & Pose Estimation
 mediapipe
@@ -41,7 +41,7 @@ mediapipe
 pgvector==0.2.4  # PostgreSQL vector extension
 
 # Image processing
-scikit-image==0.22.0
+#scikit-image==0.22.0
 
 # Monitoring
 prometheus-client==0.19.0
@@ -60,3 +60,9 @@ passlib[bcrypt]==1.7.4
 livekit-api
 pandas
 tensorflow
+
+numpy==1.26.4
+insightface==0.7.3
+scikit-image==0.22.0
+ml_dtypes>=0.4.0
+aiofiles
