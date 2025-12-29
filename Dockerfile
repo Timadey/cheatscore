@@ -13,7 +13,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     ffmpeg \
     pkg-config \
-    # Full suite of FFmpeg development headers for 'av' package build
     libavcodec-dev \
     libavformat-dev \
     libavdevice-dev \

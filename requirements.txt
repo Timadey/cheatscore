@@ -64,5 +64,5 @@ tensorflow
 numpy==1.26.4
 insightface==0.7.3
 scikit-image==0.22.0
-ml_dtypes>=0.4.0
+ml_dtypes==0.5.4
 aiofiles

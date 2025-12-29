@@ -88,7 +88,7 @@ class VerificationService:
         current_embedding = self.face_verifier.extract_embedding_from_frame(
             frame,
             detection["bbox"],
-            detection.get("landmarks")
+            # detection.get("landmarks")
         )
         
         # # Extract face crop for verification
