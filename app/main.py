@@ -1,14 +1,23 @@
 """
 FastAPI application entry point for SD Proctor service.
 """
+import os
+import logging
+from contextlib import asynccontextmanager
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-import logging
-from pathlib import Path
 
 from app.config import settings
+
+# Configure environment for AI models BEFORE other imports
+# This prevents TensorFlow/CUDA from attempting initialization on CPU-only nodes
+if settings.ai_model_device == 'cpu':
+    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+    # logging.warning("Forcing TensorFlow to use CPU (CUDA_VISIBLE_DEVICES=-1)") # Logger not set up yet
+
 from app.api.v1 import enrollment, verification, session, admin, webrtc
 from app.prediction.live_predictor import LiveProctoringMonitor
 from app.utils.redis_client import close_redis
