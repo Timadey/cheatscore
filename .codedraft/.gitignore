@@ -1,0 +1,4 @@
+# CodeDraft local data
+captures/
+*.json
+drafts

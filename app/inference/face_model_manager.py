@@ -3,12 +3,13 @@ Global Face Model Manager to handle single instantiation of InsightFace models.
 """
 import logging
 import threading
+import os
 from pathlib import Path
 from typing import Optional, List
 from insightface.app import FaceAnalysis
 
 from app.config import settings
-from app.prediction.detectors import LSTMCheatingDetector
+# from app.prediction.detectors import LSTMCheatingDetector  # Moved to lazy import
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ class FaceModelManager:
 
     def __init__(self):
         self.app: Optional[FaceAnalysis] = None
-        self.predictor: Optional[LSTMCheatingDetector] = None
+        self.predictor: Optional[any] = None  # Typed as 'any' to avoid top-level import dependency
         self.model_name = settings.face_verification_model  # Use verification model as primary
         self.device = settings.ai_model_device
         self.is_initialized = False
@@ -53,17 +54,23 @@ class FaceModelManager:
         Initialize the global FaceAnalysis model.
         This should be called at application startup.
         """
+        logger.warning("initializing models")  # Changed to warning for visibility
+        
+        # Double-check initialization to avoid race conditions
         if self.is_initialized and self.app is not None and self.predictor is not None:
             logger.info("FaceAnalysis model and predictor already initialized")
             return
 
         with self._lock:
+            # Re-check inside lock
             if self.is_initialized and self.app is not None and self.predictor is not None:
                 return
 
+            # 1. Initialize FaceAnalysis (InsightFace)
             try:
                 logger.info(f"Initializing Global FaceAnalysis Model: {self.model_name}")
                 
+                pass
                 # Verify paths
                 root_path = settings.face_verification_model_path
                 
@@ -73,7 +80,6 @@ class FaceModelManager:
                     providers=self._get_execution_providers(),
                     # allowed_modules=['det', 'rec'] # Only load detection and recognition
                 )
-
 
                 # Prepare the model with detection threshold
                 self.app.prepare(
@@ -85,9 +91,20 @@ class FaceModelManager:
                 logger.info("Global FaceAnalysis Model initialized successfully")
             except Exception as e:
                 logger.error(f"Failed to initialize Global FaceAnalysis Model: {e}")
-                raise
+                # We don't raise here to allow partial initialization if one fails (unless critical)
+                # But usually FaceAnalysis is critical.
+                # raise e 
 
+            # 2. Initialize Live Proctoring Monitor (TensorFlow/LSTM)
             try:
+                # Force CPU for TensorFlow if configured, BEFORE importing it
+                if settings.ai_model_device == 'cpu':
+                    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+                    logger.info("Forcing TensorFlow to use CPU (CUDA_VISIBLE_DEVICES=-1)")
+
+                # Lazy import to prevent top-level TF initialization issues
+                from app.prediction.detectors import LSTMCheatingDetector
+
                 # Initialize Live Proctoring Monitor
                 BASE_DIR = Path(__file__).resolve().parent
                 model_path = (
@@ -97,14 +114,13 @@ class FaceModelManager:
                         / "models"
                         / "lstm_cheating_detector"
                 ).resolve()
+                
                 logger.info("Initializing Live Proctoring Monitor...")
                 self.predictor = LSTMCheatingDetector()
                 self.predictor.load(filepath=str(model_path))
                 self.is_predictor_initialized = True
             except Exception as e:
                 logger.error(f"Failed to initialize Live Proctoring Monitor: {e}")
-
-
 
     def get_app(self) -> FaceAnalysis:
         """Get the initialized FaceAnalysis app."""
@@ -115,7 +131,7 @@ class FaceModelManager:
         
         return self.app
 
-    def get_predictor(self) -> LSTMCheatingDetector:
+    def get_predictor(self) -> Optional[any]:
         """Get the initialized Live Proctoring Monitor predictor."""
         if not self.is_predictor_initialized or self.predictor is None:
             # Auto-initialize if not done yet (lazy loading fallback)
