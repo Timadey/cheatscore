@@ -54,8 +54,7 @@ class FaceModelManager:
         Initialize the global FaceAnalysis model.
         This should be called at application startup.
         """
-        logger.warning("initializing models")  # Changed to warning for visibility
-        
+
         # Double-check initialization to avoid race conditions
         if self.is_initialized and self.app is not None and self.predictor is not None:
             logger.info("FaceAnalysis model and predictor already initialized")
@@ -68,9 +67,8 @@ class FaceModelManager:
 
             # 1. Initialize FaceAnalysis (InsightFace)
             try:
-                logger.info(f"Initializing Global FaceAnalysis Model: {self.model_name}")
-                
-                pass
+                logger.warning(f"Initializing Global FaceAnalysis Model: {self.model_name}")
+                #pass
                 # Verify paths
                 root_path = settings.face_verification_model_path
                 
@@ -88,7 +86,7 @@ class FaceModelManager:
                     det_size=(settings.face_detection_size, settings.face_detection_size)
                 )
                 self.is_initialized = True
-                logger.info("Global FaceAnalysis Model initialized successfully")
+                logger.warning("Global FaceAnalysis Model initialized successfully")
             except Exception as e:
                 logger.error(f"Failed to initialize Global FaceAnalysis Model: {e}")
                 # We don't raise here to allow partial initialization if one fails (unless critical)
@@ -115,12 +113,14 @@ class FaceModelManager:
                         / "lstm_cheating_detector"
                 ).resolve()
                 
-                logger.info("Initializing Live Proctoring Monitor...")
+                logger.warning("Initializing Live Proctoring Monitor...")
                 self.predictor = LSTMCheatingDetector()
+                logger.warning(f"Live Proctoring model path {model_path}")
                 self.predictor.load(filepath=str(model_path))
+                logger.warning("Live Proctoring Monitor initialized successfully")
                 self.is_predictor_initialized = True
             except Exception as e:
-                logger.error(f"Failed to initialize Live Proctoring Monitor: {e}")
+                logger.warning(f"Failed to initialize Live Proctoring Monitor: {e}")
 
     def get_app(self) -> FaceAnalysis:
         """Get the initialized FaceAnalysis app."""

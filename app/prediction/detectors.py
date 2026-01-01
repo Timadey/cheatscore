@@ -23,7 +23,7 @@ from sklearn.preprocessing import StandardScaler, RobustScaler
 # from xgboost import XGBClassifier
 
 # Deep Learning
-# import tensorflow as tf
+import tensorflow as tf
 from tensorflow.keras import models
 # from tensorflow.keras.utils import to_categorical
 
@@ -389,7 +389,7 @@ class LSTMCheatingDetector:
         self.feature_columns = metadata['feature_columns']
         self.sequence_length = metadata['sequence_length']
         self.features_per_frame = metadata['features_per_frame']
-        print(f"Model loaded from {filepath}")
+        # print(f"Model loaded from {filepath}")
 
 
 class RealTimeDetector:

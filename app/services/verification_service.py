@@ -12,8 +12,8 @@ from sqlalchemy import select
 
 from app.models import FaceEnrollment
 from app.schemas import VerificationResponse, FaceQuality
-from app.inference.insightface.face_detection import face_detector_loaded
-from app.inference.insightface.face_verification import face_verifier_loaded
+from app.inference.insightface.face_detection import FaceDetector
+from app.inference.insightface.face_verification import FaceVerifier
 from app.utils.image_utils import decode_base64_image
 from app.exceptions import NoEnrollmentError
 from app.config import settings
@@ -26,8 +26,8 @@ class VerificationService:
     
     def __init__(self):
         """Initialize verification service."""
-        self.face_detector = face_detector_loaded
-        self.face_verifier = face_verifier_loaded
+        self.face_detector = FaceDetector()
+        self.face_verifier = FaceVerifier()
     
     async def verify_frame(
         self,
