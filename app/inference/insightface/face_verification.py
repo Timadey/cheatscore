@@ -37,7 +37,7 @@ class FaceVerifier(InsightFaceBase):
         self.input_size = (112, 112)  # Standard ArcFace input size
 
         # Initialize model
-        self._load_model()
+        # self._load_model()  # Removed for lazy loading to prevent import-time initialization
 
     def _load_model(self):
         """Load the face verification model using global manager."""

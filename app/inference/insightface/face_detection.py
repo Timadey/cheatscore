@@ -34,7 +34,7 @@ class FaceDetector(InsightFaceBase):
         self.confidence_threshold = settings.face_detection_confidence
 
         # Initialize model
-        self._load_model()
+        # self._load_model()  # Removed for lazy loading to prevent import-time initialization
 
     def detect(self, frame: np.ndarray) -> List[Dict[str, Any]]:
         """

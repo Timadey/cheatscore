@@ -50,6 +50,10 @@ class InsightFaceBase:
     def _verify_model_loaded(self):
         """Verify that the model is loaded."""
         if self.app is None:
+            # Lazy load the model if not already loaded
+            self._load_model()
+            
+        if self.app is None:
             raise RuntimeError(
                 f"{self.__class__.__name__} model not loaded. "
                 "Cannot perform inference."
