@@ -121,6 +121,7 @@ class FaceModelManager:
                 self.is_predictor_initialized = True
             except Exception as e:
                 logger.warning(f"Failed to initialize Live Proctoring Monitor: {e}")
+        logger.warning("Face model manager initialized successfully")
 
     def get_app(self) -> FaceAnalysis:
         """Get the initialized FaceAnalysis app."""

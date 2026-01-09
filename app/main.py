@@ -16,7 +16,6 @@ from app.config import settings
 # This prevents TensorFlow/CUDA from attempting initialization on CPU-only nodes
 if settings.ai_model_device == 'cpu':
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-    # logging.warning("Forcing TensorFlow to use CPU (CUDA_VISIBLE_DEVICES=-1)") # Logger not set up yet
 
 from app.api.v1 import enrollment, verification, session, admin, webrtc
 from app.prediction.live_predictor import LiveProctoringMonitor
